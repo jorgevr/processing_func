@@ -1,0 +1,47 @@
+# Build outputs
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Local settings (contains secrets)
+local.settings.json
+
+# NuGet packages
+packages/
+*.nupkg
+*.snupkg
+
+# Coverage reports
+coverage/
+coveragereport/
+*.cobertura.xml
+*.opencover.xml
+TestResults/
+
+# Azure Functions
+.azure/
+appsettings.Development.json
+
+# Logs
+*.log
+*.txt.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# JetBrains
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# dotnet publish
+publish/

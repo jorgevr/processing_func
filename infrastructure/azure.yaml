@@ -1,0 +1,11 @@
+name: dataset-processing-func
+services:
+  api:
+    project: ./src/DatasetProcessingFunction
+    language: dotnet
+    host: function
+
+infra:
+  provider: bicep
+  path: ./infrastructure
+  module: main

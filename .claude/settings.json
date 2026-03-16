@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Read(//c/Users/georg/.nuget/packages/microsoft.azure.functions.worker.opentelemetry/1.1.0/**)",
+      "Read(//c/Users/georg/.nuget/packages/microsoft.azure.functions.worker/2.51.0/**)",
+      "Read(//c/Users/georg/.nuget/packages/microsoft.azure.functions.worker/2.51.0/lib/**)",
+      "Read(//c/Users/georg/.nuget/packages/microsoft.azure.functions.worker.core/2.51.0/**)",
+      "Read(//c/Users/georg/.nuget/packages/azure.monitor.opentelemetry.exporter/**)",
+      "Read(//c/Users/georg/.nuget/packages/opentelemetry.extensions.hosting/**)",
+      "Read(//c/Users/georg/.nuget/packages/**)",
+      "Bash(cd /tmp)",
+      "Bash(unzip -l /c/Users/georg/.nuget/packages/microsoft.azure.functions.worker.opentelemetry/1.1.0/microsoft.azure.functions.worker.opentelemetry.1.1.0.nupkg)",
+      "Read(//dev/**)",
+      "Bash(find ~/.nuget/packages/microsoft.azure.functions.worker.extensions.servicebus/ -name *.xml)",
+      "Bash(mkdir -p /tmp/otelcheck)",
+      "Bash(dotnet new:*)",
+      "Read(//tmp/oteltest/oteltest/**)",
+      "Read(//tmp/**)",
+      "Read(//tmp/reflect_check/**)",
+      "Bash(ls *.slnx)",
+      "Bash(ls *.slnx *.sln)",
+      "Bash(find ~/.nuget/packages/azure.monitor.opentelemetry.aspnetcore/ -type f -name *.xml)",
+      "Bash(head -3 find ~/.nuget/packages/azure.monitor.opentelemetry.aspnetcore/ -name *.nuspec)",
+      "Bash(dotnet add:*)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet run:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\tmp\\otelcheck",
+      "\\tmp"
+    ]
+  }
+}

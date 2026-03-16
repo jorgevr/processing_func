@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "ServiceBusConnection__fullyQualifiedNamespace": "localhost",
+    "ADLS_ENDPOINT": "http://127.0.0.1:10000/devstoreaccount1",
+    "ONELAKE_ENDPOINT": "http://127.0.0.1:10000/devstoreaccount1",
+    "SCHEMA_REGISTRY_BLOB_CONNECTION": "UseDevelopmentStorage=true",
+    "SCHEMA_REGISTRY_CONTAINER": "schema-registry",
+    "SERVICEBUS_TOPIC_NAME": "dataset-events",
+    "SERVICEBUS_SUBSCRIPTION_NAME": "dataset-processing",
+    "BRONZE_FILESYSTEM": "bronze",
+    "OTEL_SERVICE_NAME": "dataset-processing-func-local",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": ""
+  }
+}

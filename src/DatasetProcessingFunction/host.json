@@ -1,0 +1,20 @@
+{
+    "version": "2.0",
+    "telemetryMode": "OpenTelemetry",
+    "logging": {
+        "logLevel": {
+            "default": "Information",
+            "DatasetProcessingFunction": "Debug"
+        }
+    },
+    "extensions": {
+        "serviceBus": {
+            "prefetchCount": 16,
+            "messageHandlerOptions": {
+                "autoComplete": false,
+                "maxConcurrentCalls": 16,
+                "maxAutoRenewDuration": "00:05:00"
+            }
+        }
+    }
+}

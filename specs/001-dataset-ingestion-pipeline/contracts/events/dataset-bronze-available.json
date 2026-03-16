@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dataset.bronze.available",
+  "title": "dataset.bronze.available",
+  "description": "Published by the DatasetProcessingFunction after successfully writing canonical records to the Fabric Lakehouse Bronze layer. Part of the medallion event chain: dataset.available → dataset.bronze.available → dataset.silver.available → dataset.gold.available.",
+  "type": "object",
+  "required": ["dataset_id", "record_count", "bronze_path", "schema_version", "correlation_id", "published_at"],
+  "additionalProperties": false,
+  "properties": {
+    "dataset_id": {
+      "type": "string",
+      "description": "The same dataset_id from the originating dataset.available event. Consumers can correlate inbound and outbound events.",
+      "minLength": 1,
+      "examples": ["vendor-abc-20260315-001"]
+    },
+    "record_count": {
+      "type": "integer",
+      "description": "Number of canonical records written to the Bronze layer.",
+      "minimum": 0,
+      "examples": [9842]
+    },
+    "bronze_path": {
+      "type": "string",
+      "format": "uri",
+      "description": "ADLS Gen2 URI of the written Bronze Parquet partition. Downstream Silver processors use this path as input.",
+      "examples": ["https://onelake.dfs.fabric.microsoft.com/{workspace-id}/{lakehouse-id}/Files/bronze/vendor-abc-20260315-001/2026-03-15/data.parquet"]
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "The schema_version from the originating event; indicates which canonical mapping was applied.",
+      "minLength": 1,
+      "examples": ["v2"]
+    },
+    "correlation_id": {
+      "type": "string",
+      "description": "W3C traceparent value propagated from the originating dataset.available event for end-to-end trace correlation.",
+      "examples": ["00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"]
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp when this event was published.",
+      "examples": ["2026-03-15T10:30:45Z"]
+    }
+  }
+}

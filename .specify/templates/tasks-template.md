@@ -69,6 +69,25 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] T008 Configure error handling and logging infrastructure
 - [ ] T009 Setup environment configuration management
 
+<!-- Constitution V & IX — for .NET Azure Functions projects include these OTel tasks:
+- [ ] TXXX [P] Add OpenTelemetry NuGet packages (`Microsoft.Azure.Functions.Worker.OpenTelemetry`,
+      `OpenTelemetry.Extensions.Hosting`, `Azure.Monitor.OpenTelemetry.Exporter`) to .csproj
+- [ ] TXXX Wire `AddOpenTelemetry().UseFunctionsWorkerDefaults().UseAzureMonitorExporter()` and
+      `builder.Logging.AddOpenTelemetry(b => b.IncludeScopes = true)` in Program.cs
+- [ ] TXXX Set `"telemetryMode": "OpenTelemetry"` in host.json
+- [ ] TXXX Add `OTEL_SERVICE_NAME` and `APPLICATIONINSIGHTS_CONNECTION_STRING` to Bicep
+      parameters and local.settings.json template
+-->
+
+<!-- Constitution Workflow §8 — for Azure Functions projects include these CI/CD tasks:
+- [ ] TXXX [P] Create CI/CD pipeline YAML with Build → Unit Tests (≥ 80% coverage gate) →
+      Integration Tests → Bicep What-If → Deploy to Staging Slot → Health Check → Slot Swap stages
+- [ ] TXXX Configure Workload Identity Federation service connection (no long-lived secrets)
+- [ ] TXXX Set `AzureFunctionApp@2` as the deploy task with `deployToSlotOrASE: true`
+- [ ] TXXX Add `AzureAppServiceManage@0` slot-swap step conditional on health check passage
+- [ ] TXXX Add post-deploy observability validation step (query App Insights for OTEL_SERVICE_NAME trace)
+-->
+
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
 ---

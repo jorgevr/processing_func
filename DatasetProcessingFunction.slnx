@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DatasetProcessingFunction.Application/DatasetProcessingFunction.Application.csproj" />
+    <Project Path="src/DatasetProcessingFunction.Domain/DatasetProcessingFunction.Domain.csproj" />
+    <Project Path="src/DatasetProcessingFunction.Infrastructure/DatasetProcessingFunction.Infrastructure.csproj" />
+    <Project Path="src/DatasetProcessingFunction/DatasetProcessingFunction.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DatasetProcessingFunction.IntegrationTests/DatasetProcessingFunction.IntegrationTests.csproj" />
+    <Project Path="tests/DatasetProcessingFunction.UnitTests/DatasetProcessingFunction.UnitTests.csproj" />
+  </Folder>
+</Solution>

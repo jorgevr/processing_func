@@ -1,0 +1,27 @@
+{
+  "VendorId": "vendor-abc",
+  "SchemaVersion": "v2",
+  "Delimiter": ",",
+  "Encoding": "UTF-8",
+  "ColumnMappings": [
+    {
+      "VendorColumn": "ts",
+      "CanonicalField": "timestamp",
+      "DataType": "datetime",
+      "UnitConversion": null
+    },
+    {
+      "VendorColumn": "sid",
+      "CanonicalField": "site_id",
+      "DataType": "string",
+      "UnitConversion": null
+    },
+    {
+      "VendorColumn": "pwr_kw",
+      "CanonicalField": "power_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w"
+    }
+  ],
+  "RequiredFields": ["ts", "sid"]
+}

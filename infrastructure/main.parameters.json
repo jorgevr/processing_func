@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": {
+      "value": "dataset-processing-func"
+    },
+    "location": {
+      "value": "eastus"
+    },
+    "serviceBusNamespace": {
+      "value": "dataset-processing-sbns"
+    },
+    "onelakeEndpoint": {
+      "value": "https://onelake.dfs.fabric.microsoft.com/{workspace-id}/{lakehouse-id}"
+    },
+    "otelServiceName": {
+      "value": "dataset-processing-func"
+    }
+  }
+}

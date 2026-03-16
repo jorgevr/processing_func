@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dataset.available",
+  "title": "dataset.available",
+  "description": "Published by an upstream producer when a vendor CSV dataset has been landed in ADLS and is ready for ingestion processing.",
+  "type": "object",
+  "required": ["dataset_id", "storage_path", "vendor_id", "schema_version", "correlation_id", "published_at"],
+  "additionalProperties": false,
+  "properties": {
+    "dataset_id": {
+      "type": "string",
+      "description": "Globally unique identifier for the dataset. Used as the idempotency key for Bronze layer partition overwrite.",
+      "minLength": 1,
+      "examples": ["vendor-abc-20260315-001"]
+    },
+    "storage_path": {
+      "type": "string",
+      "format": "uri",
+      "description": "Full ADLS Gen2 URI (abfss:// scheme) pointing to the vendor CSV file.",
+      "pattern": "^abfss://",
+      "examples": ["abfss://raw@vendorstore.dfs.core.windows.net/datasets/vendor-abc/20260315/data.csv"]
+    },
+    "vendor_id": {
+      "type": "string",
+      "description": "Identifies the vendor. Together with schema_version, resolves the VendorSchemaMapping in the schema registry.",
+      "minLength": 1,
+      "examples": ["vendor-abc"]
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Version of the vendor's CSV schema layout. Used to look up column mappings and unit conversions.",
+      "minLength": 1,
+      "examples": ["v2"]
+    },
+    "correlation_id": {
+      "type": "string",
+      "description": "W3C traceparent value propagated end-to-end for distributed trace correlation.",
+      "examples": ["00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"]
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp when this event was published.",
+      "examples": ["2026-03-15T10:30:00Z"]
+    }
+  }
+}

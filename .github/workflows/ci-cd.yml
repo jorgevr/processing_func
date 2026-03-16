@@ -1,0 +1,189 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  SOLUTION_PATH: 'DatasetProcessingFunction.slnx'
+  FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+  RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
+  AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+      - name: Publish artifact
+        run: dotnet publish src/DatasetProcessingFunction/DatasetProcessingFunction.csproj --configuration Release --no-build --output ./publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: function-app
+          path: ./publish
+
+  unit-tests:
+    name: Unit Tests (≥80% coverage)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Run unit tests with coverage
+        run: |
+          dotnet test tests/DatasetProcessingFunction.UnitTests/ \
+            --configuration Release \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+      - name: Coverage gate (≥80%)
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          reportgenerator \
+            -reports:"./TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"coveragereport" \
+            -reporttypes:"TextSummary"
+          COVERAGE=$(grep "Line coverage" coveragereport/Summary.txt | grep -oP '\d+\.\d+')
+          echo "Line coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "Coverage $COVERAGE% is below 80% gate"
+            exit 1
+          fi
+
+  integration-tests:
+    name: Integration Tests
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    services:
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Run integration tests
+        run: |
+          dotnet test tests/DatasetProcessingFunction.IntegrationTests/ \
+            --configuration Release
+
+  bicep-what-if:
+    name: Bicep What-If
+    needs: build
+    runs-on: ubuntu-latest
+    if: contains(github.event.commits[0].modified, 'infrastructure/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      - name: Bicep What-If
+        run: |
+          az deployment group what-if \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --template-file infrastructure/main.bicep \
+            --parameters infrastructure/main.parameters.json
+
+  deploy-staging:
+    name: Deploy to Staging Slot
+    needs: [unit-tests, integration-tests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: function-app
+          path: ./publish
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.FUNCTION_APP_NAME }}
+          slot-name: staging
+          package: ./publish
+          respect-pom-xml: false
+
+  health-check:
+    name: Health Check (Staging)
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      - name: Probe staging slot health
+        run: |
+          URL="https://${{ env.FUNCTION_APP_NAME }}-staging.azurewebsites.net/api/health"
+          for i in {1..5}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+            echo "Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "Health check failed"
+          exit 1
+
+  slot-swap:
+    name: Slot Swap (Staging → Production)
+    needs: health-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      - name: Swap staging to production
+        run: |
+          az webapp deployment slot swap \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --name ${{ env.FUNCTION_APP_NAME }} \
+            --slot staging \
+            --target-slot production
+
+  otel-validate:
+    name: OTel Validation (non-blocking)
+    needs: slot-swap
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      - name: Query App Insights for OTEL_SERVICE_NAME traces
+        run: |
+          az monitor app-insights query \
+            --app ${{ env.FUNCTION_APP_NAME }}-ai \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --analytics-query "traces | where customDimensions['OTEL_SERVICE_NAME'] == 'dataset-processing-func' | take 1" \
+            --offset 5m || echo "Warning: OTel traces not yet visible (non-blocking)"
