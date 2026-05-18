@@ -10,7 +10,7 @@
     <PackageReference Include="Azure.Storage.Blobs" Version="12.*" />
     <PackageReference Include="Azure.Storage.Files.DataLake" Version="12.*" />
     <PackageReference Include="CsvHelper" Version="33.*" />
-    <PackageReference Include="Parquet.Net" Version="4.23.*" />
+    <PackageReference Include="Parquet.Net" Version="6.0.*" />
   </ItemGroup>
 
   <PropertyGroup>
