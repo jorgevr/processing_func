@@ -9,8 +9,12 @@ obj/
 *.sln.docstates
 .vs/
 
-# Local settings (contains secrets)
+# Local settings / secrets
 local.settings.json
+.env
+
+# Azurite persistent storage
+azurite-data/
 
 # NuGet packages
 packages/
@@ -28,6 +32,16 @@ TestResults/
 .azure/
 appsettings.Development.json
 
+# Azurite local emulator data
+__azurite_db_blob__.json
+__azurite_db_blob_extent__.json
+__azurite_db_queue__.json
+__azurite_db_queue_extent__.json
+__azurite_db_table__.json
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+
 # Logs
 *.log
 *.txt.bak
@@ -41,7 +55,6 @@ Thumbs.db
 *.iml
 
 # VS Code
-.vscode/
 
 # dotnet publish
 publish/

@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "dead-letter-reason",
+  "title": "DeadLetterReason",
+  "description": "Structured payload written to the Service Bus dead-letter reason property when a message is dead-lettered by the processing function.",
+  "type": "object",
+  "required": ["error_type", "dataset_id"],
+  "properties": {
+    "error_type": {
+      "type": "string",
+      "enum": [
+        "DeserializationFailed",
+        "ValidationFailed",
+        "EmptyDataset",
+        "UnsupportedEncoding",
+        "ProcessingFailed"
+      ],
+      "description": "Machine-readable error category."
+    },
+    "dataset_id": {
+      "type": ["string", "null"],
+      "description": "Dataset identifier from the event payload, if extractable."
+    },
+    "fail_count": {
+      "type": ["integer", "null"],
+      "description": "Number of validation failures. Present only when error_type is ValidationFailed."
+    },
+    "failures": {
+      "type": ["array", "null"],
+      "description": "First 10 validation failure details. Present only when error_type is ValidationFailed.",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "properties": {
+          "row": { "type": "integer" },
+          "field": { "type": "string" },
+          "rule": { "type": "string" },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "detected_encoding": {
+      "type": ["string", "null"],
+      "description": "Detected encoding of the rejected file. Present only when error_type is UnsupportedEncoding."
+    }
+  },
+  "additionalProperties": true
+}

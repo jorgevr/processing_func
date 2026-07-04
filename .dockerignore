@@ -1,0 +1,24 @@
+# Build outputs
+**/bin/
+**/obj/
+
+# .NET local development
+local.settings.json
+.env
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

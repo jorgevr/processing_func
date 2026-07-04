@@ -27,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\DatasetProcessingFunction.Domain\DatasetProcessingFunction.Domain.csproj" />
     <ProjectReference Include="..\..\src\DatasetProcessingFunction.Application\DatasetProcessingFunction.Application.csproj" />
+    <ProjectReference Include="..\..\src\DatasetProcessingFunction.Infrastructure\DatasetProcessingFunction.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

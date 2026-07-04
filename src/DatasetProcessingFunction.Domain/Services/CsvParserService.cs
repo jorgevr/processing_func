@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using CsvHelper;
 using CsvHelper.Configuration;
+using DatasetProcessingFunction.Domain.Exceptions;
 using DatasetProcessingFunction.Domain.ValueObjects;
 
 namespace DatasetProcessingFunction.Domain.Services;
@@ -39,10 +40,12 @@ public sealed class CsvParserService
         var headers = csvReader.HeaderRecord ?? Array.Empty<string>();
 
         var rowIndex = 0;
+        var hasRows = false;
         while (await csvReader.ReadAsync())
         {
             cancellationToken.ThrowIfCancellationRequested();
             rowIndex++;
+            hasRows = true;
             var fields = new Dictionary<string, string>(headers.Length, StringComparer.OrdinalIgnoreCase);
             foreach (var header in headers)
             {
@@ -50,6 +53,10 @@ public sealed class CsvParserService
             }
             yield return new RawRecord(rowIndex, fields);
         }
+
+        // FR-006c: header-only CSV (zero data rows) must be rejected
+        if (!hasRows)
+            throw new EmptyDatasetException();
     }
 
     private static void ValidateEncoding(byte[] bytes)

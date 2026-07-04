@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "dataset-bronze-available-event",
+  "title": "DatasetBronzeAvailableEvent",
+  "description": "Integration event published by DatasetProcessingFunction after a successful Bronze write. Consumed by the downstream Silver-layer processing function. Published on the same Service Bus topic as DatasetAvailableEvent using subject 'dataset.bronze.available'.",
+  "type": "object",
+  "required": ["dataset_id", "record_count", "bronze_path", "schema_version", "correlation_id", "published_at"],
+  "properties": {
+    "dataset_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Matches DatasetAvailableEvent.DatasetId."
+    },
+    "record_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of canonical records written to the Bronze Parquet partition."
+    },
+    "bronze_path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ADLS URI of the written Parquet partition. Format: {onelake_endpoint}/{filesystem}/{dataset_id}/{date}/data.parquet",
+      "examples": [
+        "https://onelake.dfs.fabric.microsoft.com/bronze/vendor-abc-20260315-001/2026-03-15/data.parquet",
+        "http://127.0.0.1:10000/devstoreaccount1/bronze/vendor-abc-20260315-001/2026-03-15/data.parquet"
+      ]
+    },
+    "schema_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Schema version used during processing. Propagated from the triggering DatasetAvailableEvent."
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Propagated from DatasetAvailableEvent.CorrelationId. Links this event to the originating trace."
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of event publication (round-trip 'O' format)."
+    }
+  },
+  "additionalProperties": false
+}

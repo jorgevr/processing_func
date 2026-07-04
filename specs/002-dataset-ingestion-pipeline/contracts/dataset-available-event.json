@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "dataset-available-event",
+  "title": "DatasetAvailableEvent",
+  "description": "Integration event published by an upstream producer when a vendor CSV file is ready for processing. Consumed by the DatasetProcessingFunction from the 'raw-energy-events' Service Bus queue.",
+  "type": "object",
+  "required": ["DatasetId", "StoragePath", "VendorId", "SchemaVersion", "PublishedAt"],
+  "properties": {
+    "DatasetId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this dataset ingestion. Used as the partition key in the Bronze layer."
+    },
+    "StoragePath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Storage URI of the vendor CSV file. abfss:// scheme in production; http:// accepted for local emulator.",
+      "examples": [
+        "abfss://raw@store.dfs.core.windows.net/datasets/vendor-abc/20260315/data.csv",
+        "http://127.0.0.1:10000/devstoreaccount1/raw/datasets/vendor-abc/20260315/data.csv"
+      ]
+    },
+    "VendorId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Vendor identifier. Combined with SchemaVersion to look up the VendorSchemaMapping in the schema registry."
+    },
+    "SchemaVersion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Schema version string (e.g. 'v2'). Combined with VendorId to select the correct ColumnMappings."
+    },
+    "CorrelationId": {
+      "type": ["string", "null"],
+      "description": "W3C traceparent-compatible correlation ID. Optional — if absent or null the processing function generates a new Guid-based value and logs a warning. Propagated to all outbound events and OTel spans (FR-003)."
+    },
+    "PublishedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of event publication."
+    }
+  },
+  "additionalProperties": true
+}

@@ -34,6 +34,18 @@ public sealed class SchemaTransformer
                     siteId = rawValue;
             }
 
+            if (mapping.PassThroughUnmapped)
+            {
+                var mappedVendorCols = mapping.ColumnMappings
+                    .Select(c => c.VendorColumn)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach (var (key, value) in record.Fields)
+                {
+                    if (!mappedVendorCols.Contains(key))
+                        canonicalFields[key] = value;
+                }
+            }
+
             result.Add(new CanonicalRecord(siteId, timestamp, ingestionTime, string.Empty, mapping.SchemaVersion, canonicalFields));
         }
 

@@ -151,7 +151,7 @@ infrastructure/
 ├── main.parameters.json
 └── modules/
     ├── function-app.bicep                           # Premium plan + slots + Run from Package
-    ├── service-bus.bicep                            # Namespace, topic, subscriptions, DLQ
+    ├── service-bus.bicep                            # Namespace, queues (Basic tier — no topics/subscriptions), DLQ
     ├── storage.bicep                                # Dedicated storage account for function app
     ├── app-insights.bicep                           # Application Insights workspace
     └── key-vault.bicep                              # Secrets + Managed Identity access policy

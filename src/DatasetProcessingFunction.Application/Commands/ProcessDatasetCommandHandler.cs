@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using DatasetProcessingFunction.Application.Interfaces;
 using DatasetProcessingFunction.Application.Notifications;
+using DatasetProcessingFunction.Domain.Exceptions;
 using DatasetProcessingFunction.Domain.Services;
-using DatasetProcessingFunction.Domain.ValueObjects;
 using DatasetProcessingFunction.Domain.Telemetry;
+using DatasetProcessingFunction.Domain.ValueObjects;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace DatasetProcessingFunction.Application.Commands;
 
@@ -18,6 +20,8 @@ public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatase
     private readonly SchemaTransformer _transformer;
     private readonly DataQualityValidator _validator;
     private readonly RecordEnricher _enricher;
+    private readonly IProcessingMetricsEmitter _metricsEmitter;
+    private readonly ILogger<ProcessDatasetCommandHandler> _logger;
 
     public ProcessDatasetCommandHandler(
         IDatasetReader reader,
@@ -26,7 +30,10 @@ public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatase
         IMediator mediator,
         CsvParserService csvParser,
         SchemaTransformer transformer,
-        DataQualityValidator validator)
+        DataQualityValidator validator,
+        RecordEnricher enricher,
+        IProcessingMetricsEmitter metricsEmitter,
+        ILogger<ProcessDatasetCommandHandler> logger)
     {
         _reader = reader ?? throw new ArgumentNullException(nameof(reader));
         _writer = writer ?? throw new ArgumentNullException(nameof(writer));
@@ -35,7 +42,9 @@ public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatase
         _csvParser = csvParser ?? throw new ArgumentNullException(nameof(csvParser));
         _transformer = transformer ?? throw new ArgumentNullException(nameof(transformer));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-        _enricher = new RecordEnricher();
+        _enricher = enricher ?? throw new ArgumentNullException(nameof(enricher));
+        _metricsEmitter = metricsEmitter ?? throw new ArgumentNullException(nameof(metricsEmitter));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<ProcessDatasetResult> Handle(
@@ -44,18 +53,22 @@ public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatase
     {
         var sw = Stopwatch.StartNew();
 
+        // FR-020: push CorrelationId into logger scope so all child log entries carry it
+        using var logScope = _logger.BeginScope(
+            new Dictionary<string, object> { ["CorrelationId"] = request.CorrelationId });
+
         using var rootActivity = DatasetActivitySource.Source.StartActivity("dataset.process");
         rootActivity?.SetTag("dataset_id", request.DatasetId);
         rootActivity?.SetTag("vendor_id", request.VendorId);
+        rootActivity?.SetTag("correlation_id", request.CorrelationId);  // FR-020 / FR-023
 
-        // 1. Resolve schema mapping
-        var mapping = await _registry.GetAsync(request.VendorId, request.SchemaVersion, cancellationToken);
-        if (mapping is null)
-            return ProcessDatasetResult.Fail($"No schema mapping found for {request.VendorId}:{request.SchemaVersion}");
+        // 1. Resolve schema mapping — throws UnknownSchemaException if not found or invalid (FR-016, FR-016a)
+        var mapping = await _registry.GetAsync(request.VendorId, request.SchemaVersion, cancellationToken)
+            ?? throw new UnknownSchemaException(request.VendorId, request.SchemaVersion);
 
         try
         {
-            // 2. Read CSV from ADLS
+            // 2. Read CSV from ADLS (Polly retry lives inside AdlsDatasetReader)
             Stream csvStream;
             using (var readActivity = DatasetActivitySource.Source.StartActivity("dataset.adls.read"))
             {
@@ -99,13 +112,14 @@ public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatase
                 transformActivity?.SetTag("record_count", canonicalRecords.Count);
             }
 
-            // 6. Write Bronze
+            // 6. Write Bronze — mapping passed explicitly so writer builds schema dynamically (FR-017b)
             Uri bronzePath;
             using (var writeActivity = DatasetActivitySource.Source.StartActivity("dataset.bronze.write"))
             {
                 writeActivity?.SetTag("dataset_id", request.DatasetId);
                 var date = DateOnly.FromDateTime(DateTime.UtcNow);
-                bronzePath = await _writer.WriteAsync(new DatasetId(request.DatasetId), date, canonicalRecords, cancellationToken);
+                bronzePath = await _writer.WriteAsync(
+                    new DatasetId(request.DatasetId), date, canonicalRecords, mapping, cancellationToken);
                 writeActivity?.SetTag("bronze_path", bronzePath.ToString());
             }
 
@@ -121,6 +135,16 @@ public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatase
                 cancellationToken);
 
             sw.Stop();
+
+            // 8. Emit metrics (FR-021) — must be from the handler, not only the function entry point
+            _metricsEmitter.Emit(new ProcessingMetrics(
+                request.DatasetId,
+                RecordsProcessed: canonicalRecords.Count,
+                ValidationPassCount: validationResult.PassCount,
+                ValidationFailCount: validationResult.FailCount,
+                ProcessingDurationMs: sw.ElapsedMilliseconds,
+                BronzePath: bronzePath));
+
             return ProcessDatasetResult.Ok(canonicalRecords.Count, bronzePath);
         }
         catch (DatasetValidationException)

@@ -1,0 +1,98 @@
+{
+  "VendorId": "PVDAQ",
+  "SchemaVersion": "v1",
+  "Delimiter": ",",
+  "Encoding": "UTF-8",
+  "PassThroughUnmapped": true,
+  "RequiredFields": ["measured_on"],
+  "ColumnMappings": [
+    {
+      "VendorColumn": "measured_on",
+      "CanonicalField": "timestamp",
+      "DataType": "datetime",
+      "UnitConversion": null
+    },
+    {
+      "VendorColumn": "inverter_module_1.1_ac_power_(kw)_inv_150135",
+      "CanonicalField": "ac_power_module_1_1_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w",
+      "MinValue": 0
+    },
+    {
+      "VendorColumn": "inverter_module_1.2_ac_power_(kw)_inv_150136",
+      "CanonicalField": "ac_power_module_1_2_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w",
+      "MinValue": 0
+    },
+    {
+      "VendorColumn": "inverter_module_1.3_ac_power_(kw)_inv_150137",
+      "CanonicalField": "ac_power_module_1_3_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w",
+      "MinValue": 0
+    },
+    {
+      "VendorColumn": "inverter_module_1.4_ac_power_(kw)_inv_150138",
+      "CanonicalField": "ac_power_module_1_4_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w",
+      "MinValue": 0
+    },
+    {
+      "VendorColumn": "inverter_module_2.1_ac_power_(kw)_inv_150139",
+      "CanonicalField": "ac_power_module_2_1_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w",
+      "MinValue": 0
+    },
+    {
+      "VendorColumn": "inverter_module_2.2_ac_power_(kw)_inv_150140",
+      "CanonicalField": "ac_power_module_2_2_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w",
+      "MinValue": 0
+    },
+    {
+      "VendorColumn": "inverter_module_2.3_ac_power_(kw)_inv_150141",
+      "CanonicalField": "ac_power_module_2_3_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w",
+      "MinValue": 0
+    },
+    {
+      "VendorColumn": "inverter_module_2.4_ac_power_(kw)_inv_150142",
+      "CanonicalField": "ac_power_module_2_4_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w",
+      "MinValue": 0
+    },
+    {
+      "VendorColumn": "inverter_1_ac_power_(kw)_inv_150143",
+      "CanonicalField": "inverter_1_ac_power_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w",
+      "MinValue": 0
+    },
+    {
+      "VendorColumn": "inverter_2_ac_power_(kw)_inv_150144",
+      "CanonicalField": "inverter_2_ac_power_w",
+      "DataType": "decimal",
+      "UnitConversion": "kw_to_w",
+      "MinValue": 0
+    },
+    {
+      "VendorColumn": "inverter_1_power_factor_inv_150145",
+      "CanonicalField": "inverter_1_power_factor",
+      "DataType": "decimal",
+      "UnitConversion": null
+    },
+    {
+      "VendorColumn": "inverter_2_power_factor_inv_150146",
+      "CanonicalField": "inverter_2_power_factor",
+      "DataType": "decimal",
+      "UnitConversion": null
+    }
+  ]
+}

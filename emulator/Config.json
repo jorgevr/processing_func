@@ -1,0 +1,54 @@
+{
+  "UserConfig": {
+    "Namespaces": [{
+      "Name": "sbemulatorns",
+      "Queues": [
+        {
+          "Name": "raw-energy-events",
+          "Properties": {
+            "DeadLetteringOnMessageExpiration": false,
+            "DefaultMessageTimeToLive": "PT1H",
+            "LockDuration": "PT1M",
+            "MaxDeliveryCount": 3,
+            "RequiresDuplicateDetection": false,
+            "RequiresSession": false
+          }
+        },
+        {
+          "Name": "dataset-bronze-available",
+          "Properties": {
+            "DeadLetteringOnMessageExpiration": false,
+            "DefaultMessageTimeToLive": "PT1H",
+            "LockDuration": "PT1M",
+            "MaxDeliveryCount": 3,
+            "RequiresDuplicateDetection": false,
+            "RequiresSession": false
+          }
+        },
+        {
+          "Name": "pvdaq-historical-work",
+          "Properties": {
+            "DeadLetteringOnMessageExpiration": false,
+            "DefaultMessageTimeToLive": "PT1H",
+            "LockDuration": "PT5M",
+            "MaxDeliveryCount": 5,
+            "RequiresDuplicateDetection": false,
+            "RequiresSession": false
+          }
+        },
+        {
+          "Name": "pvdaq-dead-letter",
+          "Properties": {
+            "DeadLetteringOnMessageExpiration": false,
+            "DefaultMessageTimeToLive": "PT1H",
+            "LockDuration": "PT1M",
+            "MaxDeliveryCount": 10,
+            "RequiresDuplicateDetection": false,
+            "RequiresSession": false
+          }
+        }
+      ]
+    }],
+    "Logging": { "Type": "File" }
+  }
+}

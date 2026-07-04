@@ -92,7 +92,7 @@ jobs:
     name: Bicep What-If
     needs: build
     runs-on: ubuntu-latest
-    if: contains(github.event.commits[0].modified, 'infrastructure/')
+    if: github.event.commits != null && contains(github.event.commits[0].modified, 'infrastructure/')
     steps:
       - uses: actions/checkout@v4
       - uses: azure/login@v2

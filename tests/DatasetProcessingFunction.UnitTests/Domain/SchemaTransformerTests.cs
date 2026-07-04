@@ -85,6 +85,50 @@ public sealed class SchemaTransformerTests
     }
 
     [Fact]
+    public void Transform_PassThroughUnmapped_UnmappedColumnsPreservedAsRawStrings()
+    {
+        var mapping = BuildMapping();
+        mapping.PassThroughUnmapped = true;
+        var records = new List<RawRecord>
+        {
+            BuildRecord(1, new Dictionary<string, string>
+            {
+                ["ts"]  = "2026-03-15T10:00:00Z",
+                ["sid"] = "site-1",
+                ["pwr_kw"] = "5.0",
+                ["dc_current_string_01"] = "3.75"   // not in mapping
+            })
+        };
+
+        var result = new SchemaTransformer().Transform(records, mapping);
+
+        result[0].Fields.Should().ContainKey("dc_current_string_01");
+        result[0].Fields["dc_current_string_01"].Should().Be("3.75");
+        // Mapped column still transformed normally
+        ((decimal)result[0].Fields["power_w"]).Should().Be(5000m);
+    }
+
+    [Fact]
+    public void Transform_PassThroughUnmapped_False_UnmappedColumnsDropped()
+    {
+        var mapping = BuildMapping(); // PassThroughUnmapped = false (default)
+        var records = new List<RawRecord>
+        {
+            BuildRecord(1, new Dictionary<string, string>
+            {
+                ["ts"]  = "2026-03-15T10:00:00Z",
+                ["sid"] = "site-1",
+                ["pwr_kw"] = "5.0",
+                ["dc_current_string_01"] = "3.75"
+            })
+        };
+
+        var result = new SchemaTransformer().Transform(records, mapping);
+
+        result[0].Fields.Should().NotContainKey("dc_current_string_01");
+    }
+
+    [Fact]
     public void Transform_EnrichmentFieldsSiteIdAndIngestionTimePresent()
     {
         var mapping = BuildMapping();

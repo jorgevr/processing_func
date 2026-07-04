@@ -1,4 +1,5 @@
 using System.Text;
+using DatasetProcessingFunction.Domain.Exceptions;
 using DatasetProcessingFunction.Domain.Services;
 using DatasetProcessingFunction.Domain.ValueObjects;
 using FluentAssertions;
@@ -67,14 +68,14 @@ public sealed class CsvParserServiceTests
     }
 
     [Fact]
-    public async Task ParseAsync_EmptyCsv_ReturnsNoRecords()
+    public async Task ParseAsync_HeaderOnlyCsv_ThrowsEmptyDatasetException()
     {
         var csv = "timestamp,site_id\n";
         using var stream = CreateUtf8Stream(csv);
 
-        var records = await _sut.ParseAsync(stream, ',', CancellationToken.None).ToListAsync();
+        var act = async () => await _sut.ParseAsync(stream, ',', CancellationToken.None).ToListAsync();
 
-        records.Should().BeEmpty();
+        await act.Should().ThrowAsync<EmptyDatasetException>();
     }
 
     private static MemoryStream CreateUtf8Stream(string content)

@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+using DatasetProcessingFunction.Application.Interfaces;
 using DatasetProcessingFunction.Domain.ValueObjects;
 
 namespace DatasetProcessingFunction.Infrastructure.Telemetry;
@@ -7,7 +8,7 @@ namespace DatasetProcessingFunction.Infrastructure.Telemetry;
 /// Emits processing metrics via System.Diagnostics.Metrics, registered as an OTel instrument
 /// in Program.cs. Each counter/histogram is tagged with dataset_id for per-dataset visibility.
 /// </summary>
-public sealed class ProcessingMetricsEmitter : IDisposable
+public sealed class ProcessingMetricsEmitter : IProcessingMetricsEmitter, IDisposable
 {
     public static readonly string MeterName = "DatasetProcessingFunction";
 

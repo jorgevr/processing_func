@@ -1,0 +1,4 @@
+measured_on,inverter_module_1.1_ac_power_(kw)_inv_150135,inverter_module_1.2_ac_power_(kw)_inv_150136,inverter_module_1.3_ac_power_(kw)_inv_150137,inverter_module_1.4_ac_power_(kw)_inv_150138,inverter_module_2.1_ac_power_(kw)_inv_150139,inverter_module_2.2_ac_power_(kw)_inv_150140,inverter_module_2.3_ac_power_(kw)_inv_150141,inverter_module_2.4_ac_power_(kw)_inv_150142,inverter_1_ac_power_(kw)_inv_150143,inverter_2_ac_power_(kw)_inv_150144,inverter_1_power_factor_inv_150145,inverter_2_power_factor_inv_150146
+2024-01-01T08:00:00Z,1.23,0.95,1.10,0.88,1.15,0.92,1.05,0.78,2.18,1.93,0.98,0.97
+2024-01-01T08:15:00Z,1.30,1.00,1.12,0.90,1.20,0.95,1.08,0.80,2.30,2.00,0.99,0.98
+2024-01-01T08:30:00Z,1.28,0.98,1.11,0.89,1.18,0.94,1.07,0.79,2.26,1.98,0.98,0.97
