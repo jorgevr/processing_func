@@ -58,3 +58,6 @@ Thumbs.db
 
 # dotnet publish
 publish/
+
+# Azurite VS Code extension config
+AzuriteConfig
