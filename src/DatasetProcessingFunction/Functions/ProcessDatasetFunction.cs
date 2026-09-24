@@ -191,13 +191,13 @@ public sealed record DatasetAvailableEvent
 {
     [JsonPropertyName("source_vendor")] public string SourceVendor { get; init; } = "";
     [JsonPropertyName("schema_version")] public string SchemaVersion { get; init; } = "";
-    [JsonPropertyName("correlation_id")]  public string? CorrelationId { get; init; }
-    [JsonPropertyName("data")]            public DatasetAvailableEventData? Data { get; init; }
+    [JsonPropertyName("correlation_id")] public string? CorrelationId { get; init; }
+    [JsonPropertyName("data")] public DatasetAvailableEventData? Data { get; init; }
 }
 
 public sealed record DatasetAvailableEventData
 {
-    [JsonPropertyName("site_id")]      public long SiteId { get; init; }
-    [JsonPropertyName("category")]     public string Category { get; init; } = "";
+    [JsonPropertyName("site_id")] public long SiteId { get; init; }
+    [JsonPropertyName("category")] public string Category { get; init; } = "";
     [JsonPropertyName("storage_path")] public string StoragePath { get; init; } = "";
 }

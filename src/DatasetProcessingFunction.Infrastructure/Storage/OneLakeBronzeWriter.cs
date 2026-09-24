@@ -160,16 +160,16 @@ public sealed class OneLakeBronzeWriter : IBronzeWriter
     private static Field CreateVendorField(string canonicalName, string dataType) =>
         dataType.ToLowerInvariant() switch
         {
-            "datetime"              => new DateTimeDataField(canonicalName,
+            "datetime" => new DateTimeDataField(canonicalName,
                                            DateTimeFormat.DateAndTime, isNullable: true),
-            "decimal"               => new DecimalDataField(canonicalName,
+            "decimal" => new DecimalDataField(canonicalName,
                                            precision: 18, scale: 6, isNullable: true),
-            "double"                => new DataField(canonicalName, typeof(double?),  isNullable: true),
-            "float"                 => new DataField(canonicalName, typeof(float?),   isNullable: true),
-            "int" or "integer"      => new DataField(canonicalName, typeof(int?),     isNullable: true),
-            "long"                  => new DataField(canonicalName, typeof(long?),    isNullable: true),
-            "bool" or "boolean"     => new DataField(canonicalName, typeof(bool?),    isNullable: true),
-            _                       => new DataField<string>(canonicalName),  // string: ref type, always nullable
+            "double" => new DataField(canonicalName, typeof(double?), isNullable: true),
+            "float" => new DataField(canonicalName, typeof(float?), isNullable: true),
+            "int" or "integer" => new DataField(canonicalName, typeof(int?), isNullable: true),
+            "long" => new DataField(canonicalName, typeof(long?), isNullable: true),
+            "bool" or "boolean" => new DataField(canonicalName, typeof(bool?), isNullable: true),
+            _ => new DataField<string>(canonicalName),  // string: ref type, always nullable
         };
 
     /// <summary>
@@ -189,7 +189,7 @@ public sealed class OneLakeBronzeWriter : IBronzeWriter
             "datetime" => records.Select(r =>
                 r.Fields.TryGetValue(fieldName, out var v)
                     ? v is DateTimeOffset dto ? (DateTime?)dto.UtcDateTime
-                    : v is DateTime dt        ? (DateTime?)dt
+                    : v is DateTime dt ? (DateTime?)dt
                     : null
                     : null).ToArray(),
 

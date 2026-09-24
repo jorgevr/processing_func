@@ -11,19 +11,19 @@ public sealed class DataQualityValidatorTests
 
     private static VendorSchemaMapping BuildMapping(
         decimal? minPower = null, decimal? maxPower = null) => new()
-    {
-        VendorId = "vendor-abc",
-        SchemaVersion = "v2",
-        Delimiter = ',',
-        Encoding = "UTF-8",
-        ColumnMappings =
+        {
+            VendorId = "vendor-abc",
+            SchemaVersion = "v2",
+            Delimiter = ',',
+            Encoding = "UTF-8",
+            ColumnMappings =
         [
             new ColumnMapping("ts", "timestamp", "datetime", null),
             new ColumnMapping("sid", "site_id", "string", null),
             new ColumnMapping("pwr_kw", "power_w", "decimal", "kw_to_w", minPower, maxPower)
         ],
-        RequiredFields = ["ts", "sid"]
-    };
+            RequiredFields = ["ts", "sid"]
+        };
 
     [Fact]
     public void Validate_AllFieldsPresent_ReturnsSuccess()
