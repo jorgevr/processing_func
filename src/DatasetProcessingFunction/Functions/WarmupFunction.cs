@@ -1,6 +1,7 @@
 using Azure.Messaging.ServiceBus;
-using Azure.Storage.Files.DataLake;
+using Azure.Storage.Blobs;
 using DatasetProcessingFunction.Application.Interfaces;
+using DatasetProcessingFunction.Infrastructure.Storage;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -28,7 +29,8 @@ public sealed class WarmupFunction
         _logger.LogInformation("Warmup triggered — pre-loading singleton DI clients");
 
         // Resolve singletons to force initialization (connection pool establishment, credential fetch)
-        _ = _serviceProvider.GetRequiredService<DataLakeServiceClient>();
+        _ = _serviceProvider.GetRequiredKeyedService<BlobServiceClient>(DataStorageKeys.DataStorage);
+        _ = _serviceProvider.GetRequiredService<BlobServiceClient>(); // schema registry account
         _ = _serviceProvider.GetRequiredService<ServiceBusClient>();
         _ = _serviceProvider.GetRequiredService<ISchemaRegistry>();
 

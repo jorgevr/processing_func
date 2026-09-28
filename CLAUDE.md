@@ -5,8 +5,8 @@
 Auto-generated from all feature plans. Last updated: 2026-03-15
 
 ## Active Technologies
-- .NET 10 (LTS) Isolated Worker + MediatR 12.x, CsvHelper 33.x, Parquet.Net 4.23.x, Azure.Storage.Files.DataLake 12.18.x, Azure.Storage.Blobs 12.x, Azure.Messaging.ServiceBus 7.18.x, OpenTelemetry 1.10.x, Microsoft.Extensions.Resilience (Polly v8) (main)
-- ADLS Gen2 (`DataLakeServiceClient`) for input reads + Bronze writes; Azure Blob Storage for schema registry; Azurite + Microsoft Service Bus Emulator (Docker) for local dev (main)
+- .NET 10 (LTS) Isolated Worker + MediatR 12.x, CsvHelper 33.x, Parquet.Net 4.23.x, Azure.Storage.Blobs 12.x, Azure.Messaging.ServiceBus 7.18.x, OpenTelemetry 1.10.x, Microsoft.Extensions.Resilience (Polly v8) (main)
+- Blob API (`BlobServiceClient`) for input reads, Bronze writes and schema registry, on two separate storage accounts — ADR 0005, no `Azure.Storage.Files.DataLake`; Azurite + Microsoft Service Bus Emulator (Docker) for local dev (main)
 
 ## Project Structure
 

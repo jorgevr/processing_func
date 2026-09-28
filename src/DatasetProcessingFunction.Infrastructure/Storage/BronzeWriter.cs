@@ -1,4 +1,4 @@
-using Azure.Storage.Files.DataLake;
+using Azure.Storage.Blobs;
 using DatasetProcessingFunction.Application.Interfaces;
 using DatasetProcessingFunction.Domain.Models;
 using DatasetProcessingFunction.Domain.ValueObjects;
@@ -9,26 +9,23 @@ using Parquet.Schema;
 
 namespace DatasetProcessingFunction.Infrastructure.Storage;
 
-public sealed class OneLakeBronzeWriter : IBronzeWriter
+public sealed class BronzeWriter : IBronzeWriter
 {
-    private readonly DataLakeServiceClient _serviceClient;
-    private readonly string _fileSystemName;
-    private readonly string? _onelakeEndpoint;
-    private readonly ILogger<OneLakeBronzeWriter> _logger;
+    private readonly BlobServiceClient _serviceClient;
+    private readonly string _containerName;
+    private readonly ILogger<BronzeWriter> _logger;
 
     // Enrichment column names that take precedence over vendor-mapped columns with the same name
     private static readonly HashSet<string> EnrichmentNames = new(StringComparer.OrdinalIgnoreCase)
         { "site_id", "timestamp", "ingestion_time", "source_dataset_id", "schema_version" };
 
-    public OneLakeBronzeWriter(
-        DataLakeServiceClient serviceClient,
-        string fileSystemName,
-        string? onelakeEndpoint,
-        ILogger<OneLakeBronzeWriter> logger)
+    public BronzeWriter(
+        BlobServiceClient serviceClient,
+        string containerName,
+        ILogger<BronzeWriter> logger)
     {
         _serviceClient = serviceClient ?? throw new ArgumentNullException(nameof(serviceClient));
-        _fileSystemName = fileSystemName ?? throw new ArgumentNullException(nameof(fileSystemName));
-        _onelakeEndpoint = onelakeEndpoint;
+        _containerName = containerName ?? throw new ArgumentNullException(nameof(containerName));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -42,22 +39,22 @@ public sealed class OneLakeBronzeWriter : IBronzeWriter
         var partitionPath = $"{id.Value}/{date:yyyy-MM-dd}/data.parquet";
         _logger.LogInformation("Writing {Count} records to Bronze path: {Path}", records.Count, partitionPath);
 
-        var fileSystemClient = _serviceClient.GetFileSystemClient(_fileSystemName);
-        var fileClient = fileSystemClient.GetFileClient(partitionPath);
+        var containerClient = _serviceClient.GetBlobContainerClient(_containerName);
+        var blobClient = containerClient.GetBlobClient(partitionPath);
 
         // Idempotent overwrite — delete existing partition first (FR-018)
-        await fileClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+        await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
 
         using var parquetStream = new MemoryStream();
         await WriteParquetAsync(records, mapping, parquetStream, cancellationToken);
         parquetStream.Position = 0;
 
-        // Single atomic upload — failed upload leaves previous partition intact (FR-019)
-        await fileClient.UploadAsync(parquetStream, overwrite: true, cancellationToken);
+        // Single atomic upload — failed upload leaves previous partition intact (FR-019).
+        // The published path is the blob's own URI — never hand-built from parts.
+        await blobClient.UploadAsync(parquetStream, overwrite: true, cancellationToken);
 
-        var bronzeUri = BuildBronzeUri(partitionPath);
-        _logger.LogInformation("Bronze write complete: {Uri}", bronzeUri);
-        return bronzeUri;
+        _logger.LogInformation("Bronze write complete: {Uri}", blobClient.Uri);
+        return blobClient.Uri;
     }
 
     private static async Task WriteParquetAsync(
@@ -219,13 +216,4 @@ public sealed class OneLakeBronzeWriter : IBronzeWriter
             _ => records.Select(r =>
                 r.Fields.TryGetValue(fieldName, out var v) ? v?.ToString() : null).ToArray(),
         };
-
-    private Uri BuildBronzeUri(string partitionPath)
-    {
-        if (!string.IsNullOrWhiteSpace(_onelakeEndpoint))
-            return new Uri($"{_onelakeEndpoint.TrimEnd('/')}/{_fileSystemName}/{partitionPath}");
-
-        var accountUri = _serviceClient.Uri;
-        return new Uri($"{accountUri}{_fileSystemName}/{partitionPath}");
-    }
 }

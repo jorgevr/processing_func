@@ -4,7 +4,6 @@ using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Azure.Storage.Blobs;
-using Azure.Storage.Files.DataLake;
 using DatasetProcessingFunction.Application.Commands;
 using DatasetProcessingFunction.Application.Interfaces;
 using DatasetProcessingFunction.Domain.Services;
@@ -89,27 +88,36 @@ builder.Services.AddSingleton(sp =>
     return sp.GetRequiredService<ServiceBusClient>().CreateSender(queueName);
 });
 
-// DataLakeServiceClient — disable SDK built-in retry (MaxRetries=0) so Polly owns all retry logic (research.md §3)
-// Dual-mode: shared-key connection string for local emulator (Azurite has no OAuth), Managed Identity for production
-builder.Services.AddSingleton(sp =>
+// Data-account BlobServiceClient — dataset reads + Bronze writes (ADR 0005). Distinct from the
+// schema registry account below: the two are separate storage accounts (docs/contracts.md "Shared
+// configuration"). Retry disabled (MaxRetries=0) so Polly owns all retry logic (research.md §3).
+// Dual-mode: connection string for local emulator (Azurite has no OAuth) wins if set, else an
+// account URL + Managed Identity for production.
+builder.Services.AddKeyedSingleton(DataStorageKeys.DataStorage, (sp, _) =>
 {
-    var adlsEndpoint = builder.Configuration["ADLS_ENDPOINT"]
-        ?? throw new InvalidOperationException("ADLS_ENDPOINT is required.");
-    var options = new DataLakeClientOptions { Retry = { MaxRetries = 0 } };
-    var adlsConnStr = builder.Configuration["ADLS_CONNECTION_STRING"];
-    if (!string.IsNullOrWhiteSpace(adlsConnStr))
-        return new DataLakeServiceClient(adlsConnStr, options);
-    return new DataLakeServiceClient(new Uri(adlsEndpoint), credential, options);
+    var options = new BlobClientOptions { Retry = { MaxRetries = 0 } };
+    var dataConnStr = builder.Configuration["DATA_STORAGE_CONNECTION"];
+    if (!string.IsNullOrWhiteSpace(dataConnStr))
+        return new BlobServiceClient(dataConnStr, options);
+    var dataAccountUrl = builder.Configuration["DATA_STORAGE_ACCOUNT_URL"];
+    if (!string.IsNullOrWhiteSpace(dataAccountUrl))
+        return new BlobServiceClient(new Uri(dataAccountUrl), credential, options);
+    throw new InvalidOperationException(
+        "Either DATA_STORAGE_CONNECTION or DATA_STORAGE_ACCOUNT_URL is required.");
 });
 
+// Schema registry BlobServiceClient — a separate storage account from the data account above.
+// Retry disabled (MaxRetries=0) so Polly owns all retry logic (research.md §3). Dual-mode:
+// connection string for local emulator (Azurite has no OAuth), Managed Identity for production.
 builder.Services.AddSingleton(sp =>
 {
+    var options = new BlobClientOptions { Retry = { MaxRetries = 0 } };
     var schemaConnStr = builder.Configuration["SCHEMA_REGISTRY_BLOB_CONNECTION"];
-    if (!string.IsNullOrWhiteSpace(schemaConnStr) && schemaConnStr == "UseDevelopmentStorage=true")
-        return new BlobServiceClient(schemaConnStr);
+    if (!string.IsNullOrWhiteSpace(schemaConnStr))
+        return new BlobServiceClient(schemaConnStr, options);
     return new BlobServiceClient(
         new Uri($"https://{builder.Configuration["SCHEMA_REGISTRY_ACCOUNT"]}.blob.core.windows.net"),
-        credential);
+        credential, options);
 });
 
 // Polly v8 resilience pipeline for ADLS transient fault retry (research.md §3)
@@ -144,15 +152,21 @@ builder.Services.AddResiliencePipeline("schema-registry-read", pipeline =>
                 ex.Status is 429 or 500 or 503 or 408)
     }));
 
-// Interface bindings
-builder.Services.AddScoped<IDatasetReader, AdlsDatasetReader>();
+// Interface bindings — dataset reads and Bronze writes use the data-account client (not the
+// schema registry client above).
+builder.Services.AddScoped<IDatasetReader>(sp =>
+{
+    var blobClient = sp.GetRequiredKeyedService<BlobServiceClient>(DataStorageKeys.DataStorage);
+    var pipelineProvider = sp.GetRequiredService<ResiliencePipelineProvider<string>>();
+    return new AdlsDatasetReader(blobClient, pipelineProvider,
+        sp.GetRequiredService<ILogger<AdlsDatasetReader>>());
+});
 builder.Services.AddScoped<IBronzeWriter>(sp =>
 {
-    var dlClient = sp.GetRequiredService<DataLakeServiceClient>();
-    var filesystem = builder.Configuration["BRONZE_FILESYSTEM"] ?? "bronze";
-    var onelakeEndpoint = builder.Configuration["ONELAKE_ENDPOINT"];
-    return new OneLakeBronzeWriter(dlClient, filesystem, onelakeEndpoint,
-        sp.GetRequiredService<ILogger<OneLakeBronzeWriter>>());
+    var blobClient = sp.GetRequiredKeyedService<BlobServiceClient>(DataStorageKeys.DataStorage);
+    var container = builder.Configuration["BRONZE_CONTAINER"] ?? "bronze";
+    return new BronzeWriter(blobClient, container,
+        sp.GetRequiredService<ILogger<BronzeWriter>>());
 });
 builder.Services.AddSingleton<ISchemaRegistry>(sp =>
 {

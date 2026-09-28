@@ -11,8 +11,8 @@
     "serviceBusNamespace": {
       "value": "dataset-processing-sbns"
     },
-    "onelakeEndpoint": {
-      "value": "https://onelake.dfs.fabric.microsoft.com/{workspace-id}/{lakehouse-id}"
+    "dataStorageAccountUrl": {
+      "value": "https://{data-account-name}.blob.core.windows.net"
     },
     "otelServiceName": {
       "value": "dataset-processing-func"

@@ -7,7 +7,7 @@ using Parquet.Schema;
 
 namespace DatasetProcessingFunction.UnitTests.Infrastructure;
 
-public sealed class OneLakeBronzeWriterTests
+public sealed class BronzeWriterTests
 {
     private static VendorSchemaMapping BuildMapping(params ColumnMapping[] extra) => new()
     {
@@ -37,7 +37,7 @@ public sealed class OneLakeBronzeWriterTests
     [Fact]
     public void BuildSchema_AlwaysContainsFiveEnrichmentColumns()
     {
-        var schema = OneLakeBronzeWriter.BuildSchema(BuildMapping());
+        var schema = BronzeWriter.BuildSchema(BuildMapping());
 
         schema.DataFields.Should().Contain(f => f.Name == "site_id");
         schema.DataFields.Should().Contain(f => f.Name == "timestamp");
@@ -49,7 +49,7 @@ public sealed class OneLakeBronzeWriterTests
     [Fact]
     public void BuildSchema_DatetimeColumns_UseDateTimeDataField()
     {
-        var schema = OneLakeBronzeWriter.BuildSchema(BuildMapping());
+        var schema = BronzeWriter.BuildSchema(BuildMapping());
 
         schema.Fields.OfType<DateTimeDataField>().Select(f => f.Name)
             .Should().Contain("timestamp")
@@ -59,7 +59,7 @@ public sealed class OneLakeBronzeWriterTests
     [Fact]
     public void BuildSchema_DecimalColumns_UseDecimalDataField()
     {
-        var schema = OneLakeBronzeWriter.BuildSchema(BuildMapping());
+        var schema = BronzeWriter.BuildSchema(BuildMapping());
 
         var decField = schema.Fields.OfType<DecimalDataField>()
             .Should().ContainSingle(f => f.Name == "power_w").Subject;
@@ -73,7 +73,7 @@ public sealed class OneLakeBronzeWriterTests
         // "site_id" is an enrichment column — vendor re-mapping it should NOT produce a duplicate
         var mapping = BuildMapping(new ColumnMapping("raw_sid", "site_id", "string", null));
 
-        var schema = OneLakeBronzeWriter.BuildSchema(mapping);
+        var schema = BronzeWriter.BuildSchema(mapping);
 
         schema.DataFields.Count(f => f.Name == "site_id").Should().Be(1);
     }
@@ -85,7 +85,7 @@ public sealed class OneLakeBronzeWriterTests
         // enrichment: 5 fixed columns
         // non-duplicate vendor: power_w = 1
         // total = 6
-        var schema = OneLakeBronzeWriter.BuildSchema(BuildMapping());
+        var schema = BronzeWriter.BuildSchema(BuildMapping());
 
         schema.DataFields.Length.Should().Be(6);
     }
@@ -101,7 +101,7 @@ public sealed class OneLakeBronzeWriterTests
                 new Dictionary<string, object>())
         };
 
-        var result = OneLakeBronzeWriter.BuildColumnArray(records, "power_w", "decimal");
+        var result = BronzeWriter.BuildColumnArray(records, "power_w", "decimal");
 
         result.Should().BeOfType<decimal?[]>();
         var arr = (decimal?[])result;
@@ -124,7 +124,7 @@ public sealed class OneLakeBronzeWriterTests
                 })
         };
 
-        var schema = OneLakeBronzeWriter.BuildSchema(mapping, records);
+        var schema = BronzeWriter.BuildSchema(mapping, records);
 
         schema.DataFields.Should().Contain(f => f.Name == "dc_current_string_01");
         var extraField = schema.DataFields.First(f => f.Name == "dc_current_string_01");
@@ -141,7 +141,7 @@ public sealed class OneLakeBronzeWriterTests
             MakeRecord()  // Fields only contains power_w (a canonical name)
         };
 
-        var schema = OneLakeBronzeWriter.BuildSchema(mapping, records);
+        var schema = BronzeWriter.BuildSchema(mapping, records);
 
         // power_w is in ColumnMappings → not a pass-through; total = 6 (same as non-pass-through)
         schema.DataFields.Length.Should().Be(6);
@@ -156,7 +156,7 @@ public sealed class OneLakeBronzeWriterTests
                 new Dictionary<string, object> { ["label"] = "hello" })
         };
 
-        var result = OneLakeBronzeWriter.BuildColumnArray(records, "label", "string");
+        var result = BronzeWriter.BuildColumnArray(records, "label", "string");
 
         var arr = (string?[])result;
         arr[0].Should().Be("hello");

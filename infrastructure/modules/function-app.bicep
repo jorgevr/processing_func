@@ -3,7 +3,8 @@ param location string
 param storageAccountName string
 param appInsightsConnectionString string
 param serviceBusNamespace string
-param onelakeEndpoint string
+param dataStorageAccountUrl string
+param bronzeContainerName string = 'bronze'
 param otelServiceName string
 param keyVaultName string
 
@@ -29,7 +30,8 @@ resource func 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
         { name: 'ServiceBusConnection__fullyQualifiedNamespace', value: '${serviceBusNamespace}.servicebus.windows.net' }
-        { name: 'ONELAKE_ENDPOINT', value: onelakeEndpoint }
+        { name: 'DATA_STORAGE_ACCOUNT_URL', value: dataStorageAccountUrl }
+        { name: 'BRONZE_CONTAINER', value: bronzeContainerName }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
         { name: 'OTEL_SERVICE_NAME', value: otelServiceName }
         { name: 'KEY_VAULT_NAME', value: keyVaultName }
@@ -53,7 +55,8 @@ resource stagingSlot 'Microsoft.Web/sites/slots@2023-12-01' = {
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
         { name: 'ServiceBusConnection__fullyQualifiedNamespace', value: '${serviceBusNamespace}.servicebus.windows.net' }
-        { name: 'ONELAKE_ENDPOINT', value: onelakeEndpoint }
+        { name: 'DATA_STORAGE_ACCOUNT_URL', value: dataStorageAccountUrl }
+        { name: 'BRONZE_CONTAINER', value: bronzeContainerName }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
         { name: 'OTEL_SERVICE_NAME', value: '${otelServiceName}-staging' }
       ]

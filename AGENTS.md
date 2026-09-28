@@ -32,14 +32,14 @@ Verified working from the repo root on 2026-09-24:
 **Needs the Docker emulator stack** (root `docker-compose.yml`: Azurite + Service Bus emulator) — don't start it, just note the dependency:
 - Run locally: copy `local.settings.json.template` → `local.settings.json` with emulator values, then `cd src/DatasetProcessingFunction && func start`.
 
-`dotnet format DatasetProcessingFunction.slnx --verify-no-changes` currently fails on pre-existing indentation issues (`WHITESPACE`) in 3 files — `OneLakeBronzeWriter.cs`, `ProcessDatasetFunction.cs`, `DataQualityValidatorTests.cs` — unrelated to this task. Don't rely on it until those are fixed.
+`dotnet format DatasetProcessingFunction.slnx --verify-no-changes` passes (verified 2026-09-28).
 
 ## 4. Conventions
 
 - **Layering**: Domain has no Azure SDK references; Infrastructure implements the ports declared in Application. `Program.cs`/Functions only wire DI and glue triggers to MediatR — business logic lives in command handlers, not the Function class.
-- **DI**: expensive clients (`ServiceBusClient`, `DataLakeServiceClient`, `BlobServiceClient`) are Singletons in `Program.cs`. Dual-mode auth: connection-string/SAS for the local emulator (`UseDevelopmentEmulator`/`UseDevelopmentStorage`), otherwise `DefaultAzureCredential`.
+- **DI**: expensive clients (`ServiceBusClient`, `BlobServiceClient`) are Singletons in `Program.cs` (ADR 0005 — Blob API everywhere, no `DataLakeServiceClient`). Two separate `BlobServiceClient`s exist, one per storage account (docs/contracts.md "Shared configuration"): a keyed one (`DataStorageKeys.DataStorage`) for dataset reads and Bronze writes, and an unkeyed one for the schema registry — never mix them up. Dual-mode auth: connection-string/SAS for the local emulator (`UseDevelopmentEmulator`/`UseDevelopmentStorage`), otherwise `DefaultAzureCredential`.
 - **Error handling**: `ProcessDatasetFunction` catches specific domain exceptions (`EmptyDatasetException`, `UnsupportedEncodingException`, `DatasetValidationException`, `UnknownSchemaException`, 404 `RequestFailedException`) and dead-letters with a distinct reason code + JSON detail. Any other exception is rethrown so Service Bus retries delivery — never swallow an unrecognized exception.
-- **Retries**: Azure SDK retry is disabled (`DataLakeClientOptions.Retry.MaxRetries = 0`); a Polly v8 `ResiliencePipeline` per dependency (`adls-read`, `schema-registry-read`) owns retry (2 attempts, exponential backoff + jitter). 404 (unknown schema) is excluded — it's not transient.
+- **Retries**: Azure SDK retry is disabled (`BlobClientOptions.Retry.MaxRetries = 0`); a Polly v8 `ResiliencePipeline` per dependency (`adls-read`, `schema-registry-read`) owns retry (2 attempts, exponential backoff + jitter). 404 (unknown schema) is excluded — it's not transient.
 - **Logging/OTel**: exporter-only OpenTelemetry path (`AddOpenTelemetry().WithTracing/WithMetrics().UseFunctionsWorkerDefaults()`) — never add the Azure Monitor AspNetCore distro (duplicate spans). Azure Monitor exporter wires only when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set; the default App Insights `Warning+` `ILogger` filter rule is removed so all log levels flow through.
 - **Idempotency**: Service Bus binding uses `autoComplete: false` (host.json); the function always ends in an explicit `CompleteMessageAsync` or `DeadLetterMessageAsync` — never a silent return. `CorrelationId` comes from the event, or a generated `Guid` fallback that's logged as a warning.
 

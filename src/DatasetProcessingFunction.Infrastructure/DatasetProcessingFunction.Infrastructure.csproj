@@ -8,7 +8,6 @@
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.21.0" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.29.2" />
-    <PackageReference Include="Azure.Storage.Files.DataLake" Version="12.27.1" />
     <PackageReference Include="CsvHelper" Version="33.1.0" />
     <PackageReference Include="Microsoft.Extensions.Resilience" Version="10.10.0" />
     <PackageReference Include="Parquet.Net" Version="4.23.5" />

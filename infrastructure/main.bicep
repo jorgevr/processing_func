@@ -1,7 +1,8 @@
 param appName string
 param location string = resourceGroup().location
 param serviceBusNamespace string
-param onelakeEndpoint string
+param dataStorageAccountUrl string
+param bronzeContainerName string = 'bronze'
 param otelServiceName string = 'dataset-processing-func'
 
 module storage 'modules/storage.bicep' = {
@@ -44,7 +45,8 @@ module functionApp 'modules/function-app.bicep' = {
     storageAccountName: storage.outputs.storageAccountName
     appInsightsConnectionString: appInsights.outputs.connectionString
     serviceBusNamespace: serviceBusNamespace
-    onelakeEndpoint: onelakeEndpoint
+    dataStorageAccountUrl: dataStorageAccountUrl
+    bronzeContainerName: bronzeContainerName
     otelServiceName: otelServiceName
     keyVaultName: keyVault.outputs.keyVaultName
   }
