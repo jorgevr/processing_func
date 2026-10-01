@@ -1,4 +1,3 @@
-using System.Text.Json;
 using DatasetProcessingFunction.Infrastructure.Storage;
 using FluentAssertions;
 
@@ -6,42 +5,45 @@ namespace DatasetProcessingFunction.UnitTests.Infrastructure;
 
 public sealed class AdlsDatasetReaderTests
 {
-    // Reads the workspace root's contracts/examples/ (this repo has no vendored copy until R3.7).
-    // That directory exists only when this repo is checked out inside the anomalia-platform
-    // workspace (as it is here) — this service's own isolated CI checkout (.github/workflows/
-    // ci-cd.yml) does not have a sibling contracts/ folder, so this yields no cases there rather
-    // than failing the build; the cross-repo drift/example check is the workspace root's CI
-    // (ADR 0004 rule 4), not this one.
-    public static IEnumerable<object[]> ValidDatasetAvailableExamples()
+    // Inline literal cases — no filesystem/workspace dependency, so these always run regardless
+    // of checkout layout (this service's own isolated CI checkout has no sibling contracts/
+    // folder; the cross-repo contract-example drift check is the workspace root's CI, ADR 0004
+    // rule 4 — not this one).
+    public static TheoryData<string, string, string> ValidDatasetAvailableStoragePaths => new()
     {
-        var dir = FindContractExamplesDir();
-        if (dir is null)
-            yield break;
-
-        foreach (var file in Directory.GetFiles(dir, "valid-*.json"))
-            yield return [file];
-    }
+        // contracts/examples/dataset-available.v1/valid-minimal-local.json — local Azurite,
+        // IP-style host, unencoded '='.
+        {
+            "http://127.0.0.1:10000/devstoreaccount1/bronze/source=pvdaq/dataset=9068_ac_power/ingestion_date=2026-09-24/9068_ac_power_v1.csv",
+            "bronze",
+            "source=pvdaq/dataset=9068_ac_power/ingestion_date=2026-09-24/9068_ac_power_v1.csv"
+        },
+        // contracts/examples/dataset-available.v1/valid-rerun-cloud-with-additive-device-id.json
+        // — cloud host-style, unencoded '='.
+        {
+            "https://anomaliadata.blob.core.windows.net/bronze/source=pvdaq/dataset=9068_ac_power/ingestion_date=2026-09-25/9068_ac_power_v3.csv",
+            "bronze",
+            "source=pvdaq/dataset=9068_ac_power/ingestion_date=2026-09-25/9068_ac_power_v3.csv"
+        },
+        // The real path BlobClient.Uri emits in the docker-compose stack (ingestion-func R2.1,
+        // verified live against Azurite): percent-encoded '=' (BlobUriBuilder decodes it back),
+        // docker-network "azurite" hostname.
+        {
+            "http://azurite:10000/devstoreaccount1/bronze/source%3Dpvdaq/dataset%3D9068_ac_power/ingestion_date%3D2026-09-28/9068_ac_power_v1.csv",
+            "bronze",
+            "source=pvdaq/dataset=9068_ac_power/ingestion_date=2026-09-28/9068_ac_power_v1.csv"
+        },
+    };
 
     [Theory]
-    [MemberData(nameof(ValidDatasetAvailableExamples))]
-    public void ParseStoragePath_ExtractsContainerAndBlobName_ForEveryValidExample(string exampleFile)
+    [MemberData(nameof(ValidDatasetAvailableStoragePaths))]
+    public void ParseStoragePath_ExtractsContainerAndBlobName_ForEveryValidExample(
+        string storagePathText, string expectedContainer, string expectedBlobName)
     {
-        using var doc = JsonDocument.Parse(File.ReadAllText(exampleFile));
-        var storagePathText = doc.RootElement.GetProperty("data").GetProperty("storage_path").GetString()!;
-
-        // Independent expectation, not derived from BlobUriBuilder: every dataset-available.v1
-        // example points at the "bronze" container, so the blob name is whatever follows
-        // "/bronze/" in the raw URL string.
-        const string marker = "/bronze/";
-        var markerIndex = storagePathText.IndexOf(marker, StringComparison.Ordinal);
-        markerIndex.Should().BeGreaterThanOrEqualTo(0,
-            $"{exampleFile} is expected to point at the 'bronze' container");
-        var expectedBlobName = Uri.UnescapeDataString(storagePathText[(markerIndex + marker.Length)..]);
-
         var (containerName, blobName) = AdlsDatasetReader.ParseStoragePath(new Uri(storagePathText));
 
-        containerName.Should().Be("bronze", exampleFile);
-        blobName.Should().Be(expectedBlobName, exampleFile);
+        containerName.Should().Be(expectedContainer, storagePathText);
+        blobName.Should().Be(expectedBlobName, storagePathText);
     }
 
     [Fact]
@@ -87,17 +89,5 @@ public sealed class AdlsDatasetReaderTests
         var (_, blobName) = AdlsDatasetReader.ParseStoragePath(uri);
 
         blobName.Should().Be("dataset name/file.csv");
-    }
-
-    private static string? FindContractExamplesDir()
-    {
-        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
-        {
-            var candidate = Path.Combine(dir.FullName, "contracts", "examples", "dataset-available.v1");
-            if (Directory.Exists(candidate))
-                return candidate;
-        }
-
-        return null;
     }
 }
