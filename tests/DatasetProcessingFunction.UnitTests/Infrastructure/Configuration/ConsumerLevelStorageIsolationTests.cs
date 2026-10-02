@@ -11,6 +11,16 @@ using Microsoft.Extensions.DependencyInjection;
 namespace DatasetProcessingFunction.UnitTests.Infrastructure.Configuration;
 
 /// <summary>
+/// Declares the xUnit collection <see cref="ConsumerLevelStorageIsolationTests"/> runs in, with
+/// parallelization disabled — see the remarks on that class for why.
+/// </summary>
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class AzureEventSourceCollection
+{
+    public const string Name = "AzureEventSource";
+}
+
+/// <summary>
 /// Consumer-level isolation between the data-storage and schema-registry storage accounts
 /// (docs/contracts.md "Shared configuration" §5.1/§5.2). The round-3 reviewer's surviving
 /// mutation (<c>AddSchemaRegistry</c>'s <see cref="ISchemaRegistry"/> factory resolving the
@@ -26,19 +36,33 @@ namespace DatasetProcessingFunction.UnitTests.Infrastructure.Configuration;
 /// neither exposes a parameter or hook a caller can use to supply a custom
 /// <c>BlobClientOptions.Transport</c>, so a literal recording-transport swap is not possible from
 /// here without a source change — none was made (see the Test Author report for the smallest
-/// proposed seam). Instead, both accounts are given genuinely non-resolvable hostnames
-/// ("data-host"/"registry-host"), so every call fails at DNS resolution: no live Azurite, no real
-/// network, fully offline and deterministic (confirmed: Azure Blob's resilience pipelines here
-/// have <c>Retry.MaxRetries = 0</c>, and a DNS failure's <see cref="Azure.RequestFailedException.Status"/>
-/// doesn't match either pipeline's retryable set, so exactly one attempt is made per call).
-/// <see cref="AzureEventSourceListener"/> — Azure.Core's own public diagnostics listener — captures
-/// the pipeline's "Request" event, which is logged with the full method+URI *before* the connection
-/// attempt, so the exact host and blob path are observable even though the call never completes.
-/// This captures the same information a recording transport would, without needing one.</para>
+/// proposed seam). Instead, both accounts are given hostnames under the <c>.invalid</c> TLD
+/// (RFC 2606 — reserved, guaranteed to never resolve, unlike an arbitrary made-up label which a
+/// stray wildcard DNS or split-horizon resolver could theoretically answer), so every call fails at
+/// DNS resolution: no live Azurite, no real network, fully offline and deterministic (confirmed:
+/// Azure Blob's resilience pipelines here have <c>Retry.MaxRetries = 0</c>, and a DNS failure's
+/// <see cref="Azure.RequestFailedException.Status"/> doesn't match either pipeline's retryable set,
+/// so exactly one attempt is made per call). <see cref="AzureEventSourceListener"/> — Azure.Core's
+/// own public diagnostics listener — captures the pipeline's "Request" event, which is logged with
+/// the full method+URI *before* the connection attempt, so the exact host and blob path are
+/// observable even though the call never completes. This captures the same information a recording
+/// transport would, without needing one.</para>
 ///
 /// <para>Cloud mode (<c>DefaultAzureCredential</c>) cannot be exercised offline this way — these
 /// tests stay in connection-string mode, matching every other local/emulator path in this suite.</para>
 /// </summary>
+/// <remarks>
+/// <see cref="AzureEventSourceListener"/> hooks a process-wide EventSource: every Azure SDK HTTP
+/// call anywhere in this test process is visible to whichever listener instance is active at the
+/// time, regardless of which test or class made the call. xUnit normally runs different test
+/// classes as separate collections in parallel, so a concurrently-running test in another class
+/// that also issues a real (even if failing) Azure SDK HTTP call could have its request captured
+/// by — or leak into — this class's listener. Pinning this class to its own
+/// <see cref="AzureEventSourceCollection"/> with parallelization disabled removes that risk by
+/// construction: nothing sharing this collection ever runs at the same time as these tests, now or
+/// if more AzureEventSourceListener-based tests are added later.
+/// </remarks>
+[Collection(AzureEventSourceCollection.Name)]
 public sealed class ConsumerLevelStorageIsolationTests
 {
     private const string PublicAzuriteAccountKey =
@@ -84,7 +108,7 @@ public sealed class ConsumerLevelStorageIsolationTests
         }
         catch
         {
-            // Expected: data-host/registry-host never resolve. Only the captured requests matter.
+            // Expected: the .invalid hostnames never resolve. Only the captured requests matter.
         }
 
         return requests;
@@ -103,11 +127,11 @@ public sealed class ConsumerLevelStorageIsolationTests
     public static TheoryData<string, string> AccountAssignments => new()
     {
         // T-A / T-B as specified.
-        { "data-host", "registry-host" },
+        { "data-host.invalid", "registry-host.invalid" },
         // T-C: the SAME two hostnames, assignment swapped — not new literals — so a factory that
-        // special-cases on the literal string "registry-host" (string-sniffing) rather than on
-        // which configuration key it was actually given would still be caught.
-        { "registry-host", "data-host" },
+        // special-cases on the literal string "registry-host.invalid" (string-sniffing) rather than
+        // on which configuration key it was actually given would still be caught.
+        { "registry-host.invalid", "data-host.invalid" },
     };
 
     [Theory]
