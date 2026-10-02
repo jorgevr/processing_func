@@ -1,5 +1,11 @@
+using Azure;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using DatasetProcessingFunction.Infrastructure.Storage;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using Polly.Registry;
 
 namespace DatasetProcessingFunction.UnitTests.Infrastructure;
 
@@ -89,5 +95,70 @@ public sealed class AdlsDatasetReaderTests
         var (_, blobName) = AdlsDatasetReader.ParseStoragePath(uri);
 
         blobName.Should().Be("dataset name/file.csv");
+    }
+
+    /// <summary>
+    /// A <see cref="Stream"/> that records whether <see cref="Dispose(bool)"/> ran, so a test can
+    /// assert disposal without depending on any internal detail of what disposes it.
+    /// </summary>
+    private sealed class DisposeTrackingStream : MemoryStream
+    {
+        public bool IsDisposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            IsDisposed = true;
+            base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>
+    /// T5 (docs/contract-migration.md R3.6): <see cref="AdlsDatasetReader.ReadAsync"/> must dispose
+    /// the SDK's <see cref="BlobDownloadStreamingResult"/> after copying its content — disposing it
+    /// disposes the underlying <see cref="BlobDownloadStreamingResult.Content"/> stream (per the
+    /// Azure SDK's own documented behavior), which this test observes directly on a tracking stream
+    /// rather than asserting on a mock of the call being tested.
+    /// </summary>
+    [Fact]
+    public async Task ReadAsync_DisposesTheDownloadStreamingResult()
+    {
+        var bytes = "site_id,timestamp\n1,2026-01-01\n"u8.ToArray();
+        var trackingStream = new DisposeTrackingStream();
+        trackingStream.Write(bytes);
+        trackingStream.Position = 0;
+
+        var downloadResult = BlobsModelFactory.BlobDownloadStreamingResult(
+            trackingStream, BlobsModelFactory.BlobDownloadDetails());
+
+        var blobClientMock = new Mock<BlobClient>();
+        blobClientMock
+            .Setup(c => c.DownloadStreamingAsync(It.IsAny<BlobDownloadOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response.FromValue(downloadResult, Mock.Of<Response>()));
+
+        var containerClientMock = new Mock<BlobContainerClient>();
+        containerClientMock.Setup(c => c.GetBlobClient(It.IsAny<string>())).Returns(blobClientMock.Object);
+
+        var serviceClientMock = new Mock<BlobServiceClient>();
+        serviceClientMock.Setup(s => s.GetBlobContainerClient(It.IsAny<string>())).Returns(containerClientMock.Object);
+
+        var pipelineProvider = new ResiliencePipelineRegistry<string>();
+        pipelineProvider.GetOrAddPipeline("adls-read", (builder, _) => { });
+
+        var reader = new AdlsDatasetReader(
+            serviceClientMock.Object, pipelineProvider, NullLogger<AdlsDatasetReader>.Instance);
+
+        trackingStream.IsDisposed.Should().BeFalse("not yet read");
+
+        using var resultStream = await reader.ReadAsync(
+            new Uri("http://127.0.0.1:10000/devstoreaccount1/bronze/t5-dataset/file.csv"),
+            CancellationToken.None);
+
+        trackingStream.IsDisposed.Should().BeTrue(
+            "ReadAsync must dispose the BlobDownloadStreamingResult once its content has been copied");
+
+        var buffer = new byte[bytes.Length];
+        resultStream.Position = 0;
+        await resultStream.ReadExactlyAsync(buffer);
+        buffer.Should().Equal(bytes, "the copied stream returned to the caller must still be readable");
     }
 }
