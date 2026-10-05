@@ -1,7 +1,12 @@
+using Azure;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using DatasetProcessingFunction.Domain.Models;
 using DatasetProcessingFunction.Domain.ValueObjects;
 using DatasetProcessingFunction.Infrastructure.Storage;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Parquet.Data;
 using Parquet.Schema;
 
@@ -160,5 +165,52 @@ public sealed class BronzeWriterTests
 
         var arr = (string?[])result;
         arr[0].Should().Be("hello");
+    }
+
+    /// <summary>
+    /// T4 (docs/contract-migration.md R3.6): the published path must be the blob client's own
+    /// <see cref="BlobClient.Uri"/> — never a hand-built string — and that URI's container and
+    /// blob path must be properly '/'-separated, not concatenated.
+    /// </summary>
+    [Fact]
+    public async Task WriteAsync_ReturnsTheWrittenBlobClientUri_WithContainerAndPathSeparatedCorrectly()
+    {
+        const string container = "bronze";
+        const string expectedBlobPath = "t4-dataset/2026-10-01/data.parquet";
+        var blobUri = new Uri($"http://127.0.0.1:10000/devstoreaccount1/{container}/{expectedBlobPath}");
+
+        var blobClientMock = new Mock<BlobClient>();
+        blobClientMock.SetupGet(c => c.Uri).Returns(blobUri);
+        blobClientMock
+            .Setup(c => c.DeleteIfExistsAsync(
+                It.IsAny<DeleteSnapshotsOption>(), It.IsAny<BlobRequestConditions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response.FromValue(true, Mock.Of<Response>()));
+        blobClientMock
+            .Setup(c => c.UploadAsync(It.IsAny<Stream>(), true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response.FromValue(
+                BlobsModelFactory.BlobContentInfo(new ETag("etag"), DateTimeOffset.UtcNow, Array.Empty<byte>(), "v1", 0L),
+                Mock.Of<Response>()));
+
+        var containerClientMock = new Mock<BlobContainerClient>();
+        containerClientMock
+            .Setup(c => c.GetBlobClient(expectedBlobPath))
+            .Returns(blobClientMock.Object);
+
+        var serviceClientMock = new Mock<BlobServiceClient>();
+        serviceClientMock.Setup(s => s.GetBlobContainerClient(container)).Returns(containerClientMock.Object);
+
+        var writer = new BronzeWriter(serviceClientMock.Object, container, NullLogger<BronzeWriter>.Instance);
+
+        var result = await writer.WriteAsync(
+            new DatasetId("t4-dataset"),
+            new DateOnly(2026, 10, 1),
+            [MakeRecord()],
+            BuildMapping(),
+            CancellationToken.None);
+
+        result.Should().Be(blobUri,
+            "WriteAsync must return the blob client's own URI, never a hand-built one");
+        result.AbsolutePath.Should().Contain($"/{container}/{expectedBlobPath}",
+            "the container and the blob path must be separated by '/', not concatenated");
     }
 }
