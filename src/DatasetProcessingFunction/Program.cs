@@ -8,6 +8,7 @@ using DatasetProcessingFunction.Application.Commands;
 using DatasetProcessingFunction.Application.Interfaces;
 using DatasetProcessingFunction.Domain.Services;
 using DatasetProcessingFunction.Domain.Telemetry;
+using DatasetProcessingFunction.Infrastructure.Contracts;
 using DatasetProcessingFunction.Infrastructure.Messaging;
 using DatasetProcessingFunction.Infrastructure.SchemaRegistry;
 using DatasetProcessingFunction.Infrastructure.Storage;
@@ -177,6 +178,10 @@ builder.Services.AddSingleton<ISchemaRegistry>(sp =>
         sp.GetRequiredService<ILogger<BlobSchemaRegistry>>());
 });
 builder.Services.AddScoped<IEventPublisher, ServiceBusEventPublisher>();
+// R3.7: validates inbound solar.pvdaq.dataset.available.v1 envelopes against the vendored
+// contract before ProcessDatasetFunction deserialises them. Stateless (the compiled schema is a
+// static field) — singleton is just to avoid re-resolving it per message.
+builder.Services.AddSingleton<IDatasetEventValidator, DatasetAvailableEventValidator>();
 builder.Services.AddSingleton<IProcessingMetricsEmitter, ProcessingMetricsEmitter>();
 
 // Domain services

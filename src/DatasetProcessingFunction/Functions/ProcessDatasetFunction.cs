@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Messaging.ServiceBus;
 using DatasetProcessingFunction.Application.Commands;
+using DatasetProcessingFunction.Application.Interfaces;
 using DatasetProcessingFunction.Domain.Exceptions;
 using DatasetProcessingFunction.Domain.Services;
 using MediatR;
@@ -13,11 +14,14 @@ namespace DatasetProcessingFunction.Functions;
 public sealed class ProcessDatasetFunction
 {
     private readonly IMediator _mediator;
+    private readonly IDatasetEventValidator _eventValidator;
     private readonly ILogger<ProcessDatasetFunction> _logger;
 
-    public ProcessDatasetFunction(IMediator mediator, ILogger<ProcessDatasetFunction> logger)
+    public ProcessDatasetFunction(
+        IMediator mediator, IDatasetEventValidator eventValidator, ILogger<ProcessDatasetFunction> logger)
     {
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
+        _eventValidator = eventValidator ?? throw new ArgumentNullException(nameof(eventValidator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -30,21 +34,54 @@ public sealed class ProcessDatasetFunction
     {
         _logger.LogInformation("Processing message {MessageId}", message.MessageId);
 
+        var rawJson = message.Body.ToString();
         DatasetAvailableEvent? evt;
         try
         {
+            // R3.7 (ADR 0002, 0004 rule 3): validate the whole envelope against the vendored
+            // contract before deserialising into the partial model — the hand-rolled null checks
+            // this replaces covered only 3 of the contract's 15 required fields.
+            var validation = _eventValidator.Validate(rawJson);
+
+            if (validation.IsUnrecognizedType)
+            {
+                _logger.LogWarning(
+                    "Unrecognized event type {ActualType} in message {MessageId} — dead-lettering",
+                    validation.ActualType ?? "(missing)", message.MessageId);
+                await messageActions.DeadLetterMessageAsync(
+                    message, null, "UnrecognizedEventType",
+                    JsonSerializer.Serialize(new
+                    {
+                        error_type = "UnrecognizedEventType",
+                        expected_type = IDatasetEventValidator.ExpectedType,
+                        actual_type = validation.ActualType
+                    }),
+                    cancellationToken);
+                return;
+            }
+
+            if (!validation.IsValid)
+            {
+                _logger.LogWarning(
+                    "Envelope validation failed for message {MessageId}: {Errors}",
+                    message.MessageId, string.Join("; ", validation.Errors));
+                await messageActions.DeadLetterMessageAsync(
+                    message, null, "EnvelopeValidationFailed",
+                    JsonSerializer.Serialize(new
+                    {
+                        error_type = "EnvelopeValidationFailed",
+                        errors = validation.Errors
+                    }),
+                    cancellationToken);
+                return;
+            }
+
             evt = JsonSerializer.Deserialize<DatasetAvailableEvent>(
-                message.Body,
+                rawJson,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            if (evt?.Data is null
-                || string.IsNullOrWhiteSpace(evt.Data.StoragePath)
-                || string.IsNullOrWhiteSpace(evt.Data.Category)
-                || string.IsNullOrWhiteSpace(evt.SourceVendor))
-            {
-                throw new InvalidOperationException(
-                    "Message body is missing required fields: data.storage_path, data.category, or source_vendor.");
-            }
+            if (evt?.Data is null)
+                throw new InvalidOperationException("Validated envelope deserialized to a null event or data member.");
         }
         catch (Exception ex)
         {
@@ -65,10 +102,10 @@ public sealed class ProcessDatasetFunction
 
         var datasetId = $"{evt.Data.SiteId}_{evt.Data.Category}";
 
-        // Ingestion-func sends storage_path with literal spaces in dataset names.
-        // Encode spaces before Uri parsing; ParseAdlsUri decodes them back before the DataLake SDK call.
-        var encodedStoragePath = evt.Data.StoragePath.Replace(" ", "%20");
-        if (!Uri.TryCreate(encodedStoragePath, UriKind.Absolute, out var storagePath))
+        // R3.7: the contract's storage_path pattern (^https?://[^ ]+$) already rejects a literal
+        // space as an EnvelopeValidationFailed dead-letter above, so encoding one here would mask
+        // a violation the contract now catches rather than repair a legitimate shape (R3.6 note).
+        if (!Uri.TryCreate(evt.Data.StoragePath, UriKind.Absolute, out var storagePath))
         {
             _logger.LogError("Invalid storage_path URI in message {MessageId}: {Path}",
                 message.MessageId, evt.Data.StoragePath);
