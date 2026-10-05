@@ -12,6 +12,10 @@ COPY src/DatasetProcessingFunction.Infrastructure/DatasetProcessingFunction.Infr
 RUN dotnet restore src/DatasetProcessingFunction/DatasetProcessingFunction.csproj
 
 COPY src/ src/
+# R3.7: the vendored contract DatasetProcessingFunction.Infrastructure embeds at compile time
+# (schemas/contracts/dataset-available.v1.json) — needed here, not in the runtime stage, since
+# it becomes part of the published DLL, not a loose file.
+COPY schemas/ schemas/
 
 RUN dotnet publish src/DatasetProcessingFunction/DatasetProcessingFunction.csproj \
     -c Release \
