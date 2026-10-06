@@ -88,16 +88,24 @@ jobs:
             echo "::error::No .trx result file found — the test run above did not produce one."
             exit 1
           fi
+          # xUnit's trx logger does not reliably populate <Counters notExecuted="...">: a real
+          # local repro (one [Fact(Skip=...)]) produced notExecuted="0" in the aggregate summary
+          # even though the per-test <UnitTestResult outcome="NotExecuted"> was present and
+          # total/executed correctly differed by 1. total - executed is therefore the only count
+          # in this file that reliably reflects a skip; per-test outcome="NotExecuted" occurrences
+          # are counted too, as a cross-check that must agree.
           COUNTERS=$(grep -o '<Counters[^/]*/>' "$TRX" | head -n1)
+          TOTAL=$(echo "$COUNTERS" | grep -oP 'total="\K[0-9]+')
           EXECUTED=$(echo "$COUNTERS" | grep -oP 'executed="\K[0-9]+')
-          NOTEXECUTED=$(echo "$COUNTERS" | grep -oP 'notExecuted="\K[0-9]+')
-          echo "Executed: ${EXECUTED:-<missing>}, Skipped (notExecuted): ${NOTEXECUTED:-<missing>}"
+          NOTEXECUTED_RESULTS=$(grep -o 'outcome="NotExecuted"' "$TRX" | wc -l)
+          SKIPPED=$((TOTAL - EXECUTED))
+          echo "Total: ${TOTAL:-<missing>}, Executed: ${EXECUTED:-<missing>}, Skipped (total-executed): $SKIPPED, NotExecuted result elements: $NOTEXECUTED_RESULTS"
           if [ -z "$EXECUTED" ] || [ "$EXECUTED" -eq 0 ]; then
             echo "::error::Zero unit tests were executed — the test project likely failed to build or discover tests."
             exit 1
           fi
-          if [ -n "$NOTEXECUTED" ] && [ "$NOTEXECUTED" -gt 0 ]; then
-            echo "::error::$NOTEXECUTED unit test(s) were skipped. Every unit test must run on every build — a skip hides a real gap."
+          if [ "$SKIPPED" -gt 0 ] || [ "$NOTEXECUTED_RESULTS" -gt 0 ]; then
+            echo "::error::$SKIPPED unit test(s) were skipped (per-test NotExecuted results: $NOTEXECUTED_RESULTS). Every unit test must run on every build — a skip hides a real gap."
             grep -o '<UnitTestResult[^>]*outcome="NotExecuted"[^>]*/>' "$TRX" || true
             exit 1
           fi
@@ -153,16 +161,24 @@ jobs:
             echo "::error::No .trx result file found — the test run above did not produce one."
             exit 1
           fi
+          # xUnit's trx logger does not reliably populate <Counters notExecuted="...">: a real
+          # local repro (one [Fact(Skip=...)]) produced notExecuted="0" in the aggregate summary
+          # even though the per-test <UnitTestResult outcome="NotExecuted"> was present and
+          # total/executed correctly differed by 1. total - executed is therefore the only count
+          # in this file that reliably reflects a skip; per-test outcome="NotExecuted" occurrences
+          # are counted too, as a cross-check that must agree.
           COUNTERS=$(grep -o '<Counters[^/]*/>' "$TRX" | head -n1)
+          TOTAL=$(echo "$COUNTERS" | grep -oP 'total="\K[0-9]+')
           EXECUTED=$(echo "$COUNTERS" | grep -oP 'executed="\K[0-9]+')
-          NOTEXECUTED=$(echo "$COUNTERS" | grep -oP 'notExecuted="\K[0-9]+')
-          echo "Executed: ${EXECUTED:-<missing>}, Skipped (notExecuted): ${NOTEXECUTED:-<missing>}"
+          NOTEXECUTED_RESULTS=$(grep -o 'outcome="NotExecuted"' "$TRX" | wc -l)
+          SKIPPED=$((TOTAL - EXECUTED))
+          echo "Total: ${TOTAL:-<missing>}, Executed: ${EXECUTED:-<missing>}, Skipped (total-executed): $SKIPPED, NotExecuted result elements: $NOTEXECUTED_RESULTS"
           if [ -z "$EXECUTED" ] || [ "$EXECUTED" -eq 0 ]; then
             echo "::error::Zero integration tests were executed — check that the project built and discovered tests (this is the project that holds the R3.7 acceptance tests)."
             exit 1
           fi
-          if [ -n "$NOTEXECUTED" ] && [ "$NOTEXECUTED" -gt 0 ]; then
-            echo "::error::$NOTEXECUTED integration test(s) were skipped. [IntegrationFact] tests must run against the Azurite service container above, not skip — check that DATA_STORAGE_CONNECTION reached the test process and that azurite is healthy."
+          if [ "$SKIPPED" -gt 0 ] || [ "$NOTEXECUTED_RESULTS" -gt 0 ]; then
+            echo "::error::$SKIPPED integration test(s) were skipped (per-test NotExecuted results: $NOTEXECUTED_RESULTS). [IntegrationFact] tests must run against the Azurite service container above, not skip — check that DATA_STORAGE_CONNECTION reached the test process and that azurite is healthy."
             grep -o '<UnitTestResult[^>]*outcome="NotExecuted"[^>]*/>' "$TRX" || true
             exit 1
           fi
