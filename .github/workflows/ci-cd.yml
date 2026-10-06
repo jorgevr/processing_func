@@ -57,9 +57,39 @@ jobs:
         run: |
           dotnet test tests/DatasetProcessingFunction.UnitTests/ \
             --configuration Release \
+            --logger "trx;LogFileName=unit.trx" \
             --collect:"XPlat Code Coverage" \
             --results-directory ./TestResults \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+      # CI-2: a green "Run unit tests with coverage" step only proves dotnet test exited 0 — it
+      # exits 0 just the same if the project failed to build (and `dotnet test` reported that as
+      # its own failure instead — see below) or if zero tests were discovered. This is the gap
+      # that let PR #36 merge a host project (Program.cs) that didn't compile: the unit-tests job
+      # never builds or references that project at all, so nothing here depended on it being
+      # correct. This step can't fix *that* (UnitTests.csproj has no ProjectReference to the
+      # Functions host — a larger change than this workflow-only task allows), but it closes the
+      # adjacent gap: this job must still fail loudly if its own test run finds nothing to execute.
+      - name: Fail if zero unit tests executed or any were skipped
+        if: always()
+        run: |
+          TRX=$(find ./TestResults -name 'unit.trx' | head -n1)
+          if [ -z "$TRX" ]; then
+            echo "::error::No .trx result file found — the test run above did not produce one."
+            exit 1
+          fi
+          COUNTERS=$(grep -o '<Counters[^/]*/>' "$TRX" | head -n1)
+          EXECUTED=$(echo "$COUNTERS" | grep -oP 'executed="\K[0-9]+')
+          NOTEXECUTED=$(echo "$COUNTERS" | grep -oP 'notExecuted="\K[0-9]+')
+          echo "Executed: ${EXECUTED:-<missing>}, Skipped (notExecuted): ${NOTEXECUTED:-<missing>}"
+          if [ -z "$EXECUTED" ] || [ "$EXECUTED" -eq 0 ]; then
+            echo "::error::Zero unit tests were executed — the test project likely failed to build or discover tests."
+            exit 1
+          fi
+          if [ -n "$NOTEXECUTED" ] && [ "$NOTEXECUTED" -gt 0 ]; then
+            echo "::error::$NOTEXECUTED unit test(s) were skipped. Every unit test must run on every build — a skip hides a real gap."
+            grep -o '<UnitTestResult[^>]*outcome="NotExecuted"[^>]*/>' "$TRX" || true
+            exit 1
+          fi
       - name: Coverage gate (≥80%)
         run: |
           dotnet tool install --global dotnet-reportgenerator-globaltool
@@ -104,7 +134,7 @@ jobs:
             --configuration Release \
             --logger "trx;LogFileName=integration.trx" \
             --results-directory ./TestResults
-      - name: Fail if any integration test was skipped
+      - name: Fail if zero integration tests executed or any were skipped
         if: always()
         run: |
           TRX=$(find ./TestResults -name 'integration.trx' | head -n1)
@@ -112,11 +142,17 @@ jobs:
             echo "::error::No .trx result file found — the test run above did not produce one."
             exit 1
           fi
-          SKIPPED=$(grep -o 'outcome="NotExecuted"' "$TRX" | wc -l)
-          echo "Skipped test count: $SKIPPED"
-          if [ "$SKIPPED" -gt 0 ]; then
-            echo "::error::$SKIPPED integration test(s) were skipped. [IntegrationFact] tests must run against the Azurite service container above, not skip — check that DATA_STORAGE_CONNECTION reached the test process and that azurite is healthy."
-            grep -B3 'outcome="NotExecuted"' "$TRX" || true
+          COUNTERS=$(grep -o '<Counters[^/]*/>' "$TRX" | head -n1)
+          EXECUTED=$(echo "$COUNTERS" | grep -oP 'executed="\K[0-9]+')
+          NOTEXECUTED=$(echo "$COUNTERS" | grep -oP 'notExecuted="\K[0-9]+')
+          echo "Executed: ${EXECUTED:-<missing>}, Skipped (notExecuted): ${NOTEXECUTED:-<missing>}"
+          if [ -z "$EXECUTED" ] || [ "$EXECUTED" -eq 0 ]; then
+            echo "::error::Zero integration tests were executed — check that the project built and discovered tests (this is the project that holds the R3.7 acceptance tests)."
+            exit 1
+          fi
+          if [ -n "$NOTEXECUTED" ] && [ "$NOTEXECUTED" -gt 0 ]; then
+            echo "::error::$NOTEXECUTED integration test(s) were skipped. [IntegrationFact] tests must run against the Azurite service container above, not skip — check that DATA_STORAGE_CONNECTION reached the test process and that azurite is healthy."
+            grep -o '<UnitTestResult[^>]*outcome="NotExecuted"[^>]*/>' "$TRX" || true
             exit 1
           fi
 
