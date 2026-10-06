@@ -27,7 +27,7 @@ public sealed class AzureEventSourceCollection
 /// data-storage keyed client) showed that comparing the two raw <c>BlobServiceClient</c>
 /// registrations (<see cref="SchemaRegistrySettingsTests"/>) isn't enough — the bug is in which
 /// client each CONSUMER (<see cref="ISchemaRegistry"/>, <see cref="IDatasetReader"/>,
-/// <see cref="IBronzeWriter"/>) is actually wired to. These tests resolve the real consumers from
+/// <see cref="ISilverWriter"/>) is actually wired to. These tests resolve the real consumers from
 /// a real <see cref="IServiceProvider"/> built through <c>AddDataStorage</c>/<c>AddSchemaRegistry</c>
 /// and observe which host each one actually talks to.
 ///
@@ -161,7 +161,7 @@ public sealed class ConsumerLevelStorageIsolationTests
     {
         using var provider = BuildProvider(dataStorageHost, schemaRegistryHost);
         var reader = provider.GetRequiredService<IDatasetReader>();
-        var writer = provider.GetRequiredService<IBronzeWriter>();
+        var writer = provider.GetRequiredService<ISilverWriter>();
 
         // The host actually contacted is governed by the data-storage BlobServiceClient's own
         // configured endpoint, not by this argument's authority — ParseStoragePath only reads the
@@ -182,9 +182,37 @@ public sealed class ConsumerLevelStorageIsolationTests
             EmptyMapping(),
             CancellationToken.None));
 
-        writeRequests.Should().NotBeEmpty("the Bronze write must have attempted at least one HTTP request");
+        writeRequests.Should().NotBeEmpty("the Silver write must have attempted at least one HTTP request");
         writeRequests.Should().OnlyContain(r => r.Contains(dataStorageHost, StringComparison.Ordinal));
         writeRequests.Should().NotContain(r => r.Contains(schemaRegistryHost, StringComparison.Ordinal),
-            "IBronzeWriter must never contact the schema-registry account");
+            "ISilverWriter must never contact the schema-registry account");
+    }
+
+    /// <summary>
+    /// Regression lock for R3.1 (ADR 0001): <c>AddDataStorage</c> must wire <see cref="ISilverWriter"/>
+    /// to <c>settings.SilverContainer</c>, not <c>settings.BronzeContainer</c> — the pre-fix defect
+    /// this task removes was processing-func's validated Parquet output landing in the same
+    /// container ingestion-func uses for the untouched source CSV. Uses the same offline,
+    /// DNS-failure capture technique as the tests above: no live Azurite required.
+    /// </summary>
+    [Fact]
+    public async Task SilverWriter_WritesToTheConfiguredSilverContainer_NeverBronze()
+    {
+        using var provider = BuildProvider("silver-regression-host.invalid", "registry-unused-host.invalid");
+        var writer = provider.GetRequiredService<ISilverWriter>();
+
+        var writeRequests = await CaptureAttemptedRequestsAsync(() => writer.WriteAsync(
+            new DatasetId("r3-1-regression-dataset"),
+            new DateOnly(2026, 10, 2),
+            [],
+            EmptyMapping(),
+            CancellationToken.None));
+
+        writeRequests.Should().NotBeEmpty("the Silver write must have attempted at least one HTTP request");
+        writeRequests.Should().Contain(r => r.Contains("/silver/", StringComparison.Ordinal),
+            "R3.1 (ADR 0001): processing-func's validated output must land in the 'silver' container");
+        writeRequests.Should().NotContain(r => r.Contains("/bronze/", StringComparison.Ordinal),
+            "R3.1 (ADR 0001): the validated-output writer must never target 'bronze' — that container " +
+            "is ingestion-func's exact-source-copy landing zone only");
     }
 }

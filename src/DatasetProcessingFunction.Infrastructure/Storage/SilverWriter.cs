@@ -9,20 +9,20 @@ using Parquet.Schema;
 
 namespace DatasetProcessingFunction.Infrastructure.Storage;
 
-public sealed class BronzeWriter : IBronzeWriter
+public sealed class SilverWriter : ISilverWriter
 {
     private readonly BlobServiceClient _serviceClient;
     private readonly string _containerName;
-    private readonly ILogger<BronzeWriter> _logger;
+    private readonly ILogger<SilverWriter> _logger;
 
     // Enrichment column names that take precedence over vendor-mapped columns with the same name
     private static readonly HashSet<string> EnrichmentNames = new(StringComparer.OrdinalIgnoreCase)
         { "site_id", "timestamp", "ingestion_time", "source_dataset_id", "schema_version" };
 
-    public BronzeWriter(
+    public SilverWriter(
         BlobServiceClient serviceClient,
         string containerName,
-        ILogger<BronzeWriter> logger)
+        ILogger<SilverWriter> logger)
     {
         _serviceClient = serviceClient ?? throw new ArgumentNullException(nameof(serviceClient));
         _containerName = containerName ?? throw new ArgumentNullException(nameof(containerName));
@@ -37,7 +37,7 @@ public sealed class BronzeWriter : IBronzeWriter
         CancellationToken cancellationToken = default)
     {
         var partitionPath = $"{id.Value}/{date:yyyy-MM-dd}/data.parquet";
-        _logger.LogInformation("Writing {Count} records to Bronze path: {Path}", records.Count, partitionPath);
+        _logger.LogInformation("Writing {Count} records to Silver path: {Path}", records.Count, partitionPath);
 
         var containerClient = _serviceClient.GetBlobContainerClient(_containerName);
         var blobClient = containerClient.GetBlobClient(partitionPath);
@@ -53,7 +53,7 @@ public sealed class BronzeWriter : IBronzeWriter
         // The published path is the blob's own URI — never hand-built from parts.
         await blobClient.UploadAsync(parquetStream, overwrite: true, cancellationToken);
 
-        _logger.LogInformation("Bronze write complete: {Uri}", blobClient.Uri);
+        _logger.LogInformation("Silver write complete: {Uri}", blobClient.Uri);
         return blobClient.Uri;
     }
 

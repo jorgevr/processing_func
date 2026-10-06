@@ -5,6 +5,7 @@ using DatasetProcessingFunction.Application.Commands;
 using DatasetProcessingFunction.Application.Interfaces;
 using DatasetProcessingFunction.Domain.Services;
 using DatasetProcessingFunction.Domain.Telemetry;
+using DatasetProcessingFunction.Infrastructure.Configuration;
 using DatasetProcessingFunction.Infrastructure.Contracts;
 using DatasetProcessingFunction.Infrastructure.Messaging;
 using DatasetProcessingFunction.Infrastructure.Telemetry;

@@ -37,7 +37,7 @@ public sealed class ProcessDatasetEndToEndTests
 
     private static ProcessDatasetCommandHandler BuildHandler(
         Mock<IDatasetReader> readerMock,
-        Mock<IBronzeWriter> writerMock,
+        Mock<ISilverWriter> writerMock,
         Mock<ISchemaRegistry> registryMock,
         Mock<MediatR.IMediator> mediatorMock)
     {
@@ -50,7 +50,7 @@ public sealed class ProcessDatasetEndToEndTests
     }
 
     [Fact]
-    public async Task ValidDataset_ProcessesSuccessfully_WritesToBronze()
+    public async Task ValidDataset_ProcessesSuccessfully_WritesToSilver()
     {
         var csvBytes = await File.ReadAllBytesAsync(Path.Combine(FixturesDir, "vendor-abc-v2-valid.csv"));
 
@@ -58,7 +58,7 @@ public sealed class ProcessDatasetEndToEndTests
         readerMock.Setup(r => r.ReadAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream(csvBytes));
 
-        var writerMock = new Mock<IBronzeWriter>();
+        var writerMock = new Mock<ISilverWriter>();
         writerMock.Setup(w => w.WriteAsync(
                 It.IsAny<DatasetId>(), It.IsAny<DateOnly>(),
                 It.IsAny<IReadOnlyList<CanonicalRecord>>(), It.IsAny<VendorSchemaMapping>(), It.IsAny<CancellationToken>()))
@@ -90,7 +90,7 @@ public sealed class ProcessDatasetEndToEndTests
     }
 
     [Fact]
-    public async Task MissingTimestampDataset_ThrowsValidationException_NoBronzeWrite()
+    public async Task MissingTimestampDataset_ThrowsValidationException_NoSilverWrite()
     {
         var csvBytes = await File.ReadAllBytesAsync(
             Path.Combine(FixturesDir, "vendor-abc-v2-missing-timestamp.csv"));
@@ -99,7 +99,7 @@ public sealed class ProcessDatasetEndToEndTests
         readerMock.Setup(r => r.ReadAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream(csvBytes));
 
-        var writerMock = new Mock<IBronzeWriter>();
+        var writerMock = new Mock<ISilverWriter>();
         var registryMock = new Mock<ISchemaRegistry>();
         registryMock.Setup(r => r.GetAsync("vendor-abc", "v2", It.IsAny<CancellationToken>()))
             .ReturnsAsync(BuildMapping());
@@ -125,7 +125,7 @@ public sealed class ProcessDatasetEndToEndTests
     }
 
     [Fact]
-    public async Task InvalidNumericDataset_ThrowsValidationException_NoBronzeWrite()
+    public async Task InvalidNumericDataset_ThrowsValidationException_NoSilverWrite()
     {
         var csvBytes = await File.ReadAllBytesAsync(
             Path.Combine(FixturesDir, "vendor-abc-v2-invalid-range.csv"));
@@ -134,7 +134,7 @@ public sealed class ProcessDatasetEndToEndTests
         readerMock.Setup(r => r.ReadAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream(csvBytes));
 
-        var writerMock = new Mock<IBronzeWriter>();
+        var writerMock = new Mock<ISilverWriter>();
         var registryMock = new Mock<ISchemaRegistry>();
         registryMock.Setup(r => r.GetAsync("vendor-abc", "v2", It.IsAny<CancellationToken>()))
             .ReturnsAsync(BuildMapping());
@@ -160,7 +160,7 @@ public sealed class ProcessDatasetEndToEndTests
     }
 
     [Fact]
-    public async Task EmptyDataset_ThrowsEmptyDatasetException_NoBronzeWrite()
+    public async Task EmptyDataset_ThrowsEmptyDatasetException_NoSilverWrite()
     {
         var csvBytes = await File.ReadAllBytesAsync(
             Path.Combine(FixturesDir, "vendor-abc-v2-empty.csv"));
@@ -169,7 +169,7 @@ public sealed class ProcessDatasetEndToEndTests
         readerMock.Setup(r => r.ReadAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream(csvBytes));
 
-        var writerMock = new Mock<IBronzeWriter>();
+        var writerMock = new Mock<ISilverWriter>();
         var registryMock = new Mock<ISchemaRegistry>();
         registryMock.Setup(r => r.GetAsync("vendor-abc", "v2", It.IsAny<CancellationToken>()))
             .ReturnsAsync(BuildMapping());

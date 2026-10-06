@@ -25,7 +25,7 @@ public static class ServiceCollectionExtensions
     /// Registers the data-account <see cref="BlobServiceClient"/> (keyed
     /// <see cref="DataStorageKeys.DataStorage"/> — distinct from the schema-registry client; ADR
     /// 0005, docs/contracts.md "Shared configuration" §5.1), its resilience pipeline, and
-    /// <see cref="IDatasetReader"/>/<see cref="IBronzeWriter"/>.
+    /// <see cref="IDatasetReader"/>/<see cref="ISilverWriter"/>.
     ///
     /// <see cref="DataStorageSettings"/> is validated via the options pattern with
     /// <c>ValidateOnStart()</c>: a missing/invalid configuration throws during host start
@@ -81,12 +81,12 @@ public static class ServiceCollectionExtensions
             return new AdlsDatasetReader(blobClient, pipelineProvider,
                 sp.GetRequiredService<ILogger<AdlsDatasetReader>>());
         });
-        services.AddScoped<IBronzeWriter>(sp =>
+        services.AddScoped<ISilverWriter>(sp =>
         {
             var blobClient = sp.GetRequiredKeyedService<BlobServiceClient>(DataStorageKeys.DataStorage);
             var settings = sp.GetRequiredService<IOptions<DataStorageSettings>>().Value;
-            return new BronzeWriter(blobClient, settings.BronzeContainer,
-                sp.GetRequiredService<ILogger<BronzeWriter>>());
+            return new SilverWriter(blobClient, settings.SilverContainer,
+                sp.GetRequiredService<ILogger<SilverWriter>>());
         });
 
         return services;
