@@ -22,6 +22,17 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
+      # CI-2: this repo's .gitattributes normalizes .cs files with `text=auto` (LF in the git
+      # blob) and relies on the client's core.autocrlf to restore CRLF on checkout — which
+      # .editorconfig's `end_of_line = crlf` then expects. Windows contributors get this for free
+      # (git's Windows default is autocrlf=true); actions/checkout on ubuntu-latest does not set
+      # it, so every file lands as LF and `dotnet format --verify-no-changes` below fails on
+      # every single run before Build ever executes (confirmed via the Actions API: every prior
+      # run on main fails here, "Process completed with exit code 2", and Build has never once
+      # executed) — this is the real reason PR #36 could merge a non-compiling tree: the Build
+      # step has never actually run on CI. Must be set before checkout, not after.
+      - name: Configure git to restore CRLF on checkout (match .editorconfig)
+        run: git config --global core.autocrlf true
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
