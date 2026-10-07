@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, ci-3-gate]  # TEMP: CI-3b proof branch, reverted before done
   pull_request:
     branches: [main]
 
