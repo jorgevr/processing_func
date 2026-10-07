@@ -17,7 +17,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
-using DatasetProcessingFunction.Infrastructure.Configuration;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
