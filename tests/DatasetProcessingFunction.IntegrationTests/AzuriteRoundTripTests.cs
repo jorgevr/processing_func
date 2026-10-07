@@ -44,7 +44,8 @@ public sealed class AzuriteRoundTripTests
         SchemaVersion: "v1",
         Fields: new Dictionary<string, object> { ["power_w"] = 10.5m });
 
-    [IntegrationFact(DisplayName = "Azurite round trip: plain path")]
+    // CI-3 PROOF (throwaway, to be reverted): force a skip to prove Integration Tests catches it
+    [IntegrationFact(DisplayName = "Azurite round trip: plain path", Skip = "CI-3 proof: forced skip")]
     public Task WriteAsync_ThenReadAsync_PlainPath_ReturnsIdenticalBytes() =>
         AssertRoundTrip($"t6-plain-{Guid.NewGuid():N}");
 
