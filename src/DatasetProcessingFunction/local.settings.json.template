@@ -6,6 +6,7 @@
     "ServiceBusConnection__fullyQualifiedNamespace": "localhost",
     "DATA_STORAGE_CONNECTION": "UseDevelopmentStorage=true",
     "BRONZE_CONTAINER": "bronze",
+    "SILVER_CONTAINER": "silver",
     "SCHEMA_REGISTRY_BLOB_CONNECTION": "UseDevelopmentStorage=true",
     "SCHEMA_REGISTRY_CONTAINER": "schema-registry",
     "SERVICEBUS_TOPIC_NAME": "dataset-events",

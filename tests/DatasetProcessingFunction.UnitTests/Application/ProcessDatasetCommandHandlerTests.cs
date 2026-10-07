@@ -16,7 +16,7 @@ namespace DatasetProcessingFunction.UnitTests.Application;
 public sealed class ProcessDatasetCommandHandlerTests
 {
     private readonly Mock<IDatasetReader> _readerMock = new();
-    private readonly Mock<IBronzeWriter> _writerMock = new();
+    private readonly Mock<ISilverWriter> _writerMock = new();
     private readonly Mock<ISchemaRegistry> _registryMock = new();
     private readonly Mock<IMediator> _mediatorMock = new();
     private readonly Mock<IProcessingMetricsEmitter> _metricsEmitterMock = new();
@@ -50,7 +50,7 @@ public sealed class ProcessDatasetCommandHandlerTests
     };
 
     [Fact]
-    public async Task Handle_ValidDataset_CallsBronzeWriterOnce()
+    public async Task Handle_ValidDataset_CallsSilverWriterOnce()
     {
         var csvContent = "ts,sid,pwr_kw\n2026-03-15T10:00:00Z,site-1,10.0\n";
         var csvBytes = System.Text.Encoding.UTF8.GetBytes(csvContent);
@@ -162,7 +162,7 @@ public sealed class ProcessDatasetCommandHandlerTests
         recordedSpans.Should().Contain("dataset.csv.parse");
         recordedSpans.Should().Contain("dataset.validation.run");
         recordedSpans.Should().Contain("dataset.transform");
-        recordedSpans.Should().Contain("dataset.bronze.write");
+        recordedSpans.Should().Contain("dataset.silver.write");
     }
 
     [Fact]
@@ -262,7 +262,7 @@ public sealed class ProcessDatasetCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ValidationFailure_ThrowsDatasetValidationException_NoBronzeWrite()
+    public async Task Handle_ValidationFailure_ThrowsDatasetValidationException_NoSilverWrite()
     {
         var csvContent = "ts,sid,pwr_kw\n,site-1,10.5\n2026-03-15T10:01:00Z,site-2,11.0\n";
         var csvBytes = System.Text.Encoding.UTF8.GetBytes(csvContent);

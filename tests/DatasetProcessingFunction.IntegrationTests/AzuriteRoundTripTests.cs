@@ -11,7 +11,7 @@ namespace DatasetProcessingFunction.IntegrationTests;
 /// <summary>
 /// T6 (docs/contract-migration.md R3.6; AGENTS.md §6 "Runtime behaviour is proven on the compose
 /// stack ... Mocked integration tests do not count as proof"): a real round trip against a live
-/// Azurite — <see cref="BronzeWriter.WriteAsync"/> writes, the returned URI is handed straight to
+/// Azurite — <see cref="SilverWriter.WriteAsync"/> writes, the returned URI is handed straight to
 /// <see cref="AdlsDatasetReader.ReadAsync"/> (which parses it via <c>ParseStoragePath</c>
 /// internally), and the bytes read back must equal the bytes an independent download — fetched via
 /// the blob path the test itself expects, not derived from the returned URI — sees for the same
@@ -20,7 +20,8 @@ namespace DatasetProcessingFunction.IntegrationTests;
 /// </summary>
 public sealed class AzuriteRoundTripTests
 {
-    private const string Container = "bronze";
+    // R3.1 (ADR 0001): processing-func's validated output now targets "silver", not "bronze".
+    private const string Container = "silver";
 
     private static BlobServiceClient BuildBlobServiceClient() => new(
         Environment.GetEnvironmentVariable(IntegrationFactAttribute.AzuriteConnectionStringVariable));
@@ -63,7 +64,7 @@ public sealed class AzuriteRoundTripTests
         var pipelineProvider = new ResiliencePipelineRegistry<string>();
         pipelineProvider.GetOrAddPipeline("adls-read", (builder, _) => { });
 
-        var writer = new BronzeWriter(serviceClient, Container, NullLogger<BronzeWriter>.Instance);
+        var writer = new SilverWriter(serviceClient, Container, NullLogger<SilverWriter>.Instance);
         var reader = new AdlsDatasetReader(serviceClient, pipelineProvider, NullLogger<AdlsDatasetReader>.Instance);
 
         var datasetId = new DatasetId(datasetIdValue);
@@ -77,7 +78,7 @@ public sealed class AzuriteRoundTripTests
 
             // Independent ground truth: fetched via the blob path the test itself expects
             // WriteAsync to have used (computed from datasetIdValue/date, not from writtenUri),
-            // authenticated the same way as the writer/reader — bypassing BOTH BronzeWriter's and
+            // authenticated the same way as the writer/reader — bypassing BOTH SilverWriter's and
             // AdlsDatasetReader's own URI/path resolution.
             var independentDownload = await serviceClient.GetBlobContainerClient(Container)
                 .GetBlobClient(knownBlobPath)

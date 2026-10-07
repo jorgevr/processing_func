@@ -12,7 +12,7 @@ using Parquet.Schema;
 
 namespace DatasetProcessingFunction.UnitTests.Infrastructure;
 
-public sealed class BronzeWriterTests
+public sealed class SilverWriterTests
 {
     private static VendorSchemaMapping BuildMapping(params ColumnMapping[] extra) => new()
     {
@@ -42,7 +42,7 @@ public sealed class BronzeWriterTests
     [Fact]
     public void BuildSchema_AlwaysContainsFiveEnrichmentColumns()
     {
-        var schema = BronzeWriter.BuildSchema(BuildMapping());
+        var schema = SilverWriter.BuildSchema(BuildMapping());
 
         schema.DataFields.Should().Contain(f => f.Name == "site_id");
         schema.DataFields.Should().Contain(f => f.Name == "timestamp");
@@ -54,7 +54,7 @@ public sealed class BronzeWriterTests
     [Fact]
     public void BuildSchema_DatetimeColumns_UseDateTimeDataField()
     {
-        var schema = BronzeWriter.BuildSchema(BuildMapping());
+        var schema = SilverWriter.BuildSchema(BuildMapping());
 
         schema.Fields.OfType<DateTimeDataField>().Select(f => f.Name)
             .Should().Contain("timestamp")
@@ -64,7 +64,7 @@ public sealed class BronzeWriterTests
     [Fact]
     public void BuildSchema_DecimalColumns_UseDecimalDataField()
     {
-        var schema = BronzeWriter.BuildSchema(BuildMapping());
+        var schema = SilverWriter.BuildSchema(BuildMapping());
 
         var decField = schema.Fields.OfType<DecimalDataField>()
             .Should().ContainSingle(f => f.Name == "power_w").Subject;
@@ -78,7 +78,7 @@ public sealed class BronzeWriterTests
         // "site_id" is an enrichment column — vendor re-mapping it should NOT produce a duplicate
         var mapping = BuildMapping(new ColumnMapping("raw_sid", "site_id", "string", null));
 
-        var schema = BronzeWriter.BuildSchema(mapping);
+        var schema = SilverWriter.BuildSchema(mapping);
 
         schema.DataFields.Count(f => f.Name == "site_id").Should().Be(1);
     }
@@ -90,7 +90,7 @@ public sealed class BronzeWriterTests
         // enrichment: 5 fixed columns
         // non-duplicate vendor: power_w = 1
         // total = 6
-        var schema = BronzeWriter.BuildSchema(BuildMapping());
+        var schema = SilverWriter.BuildSchema(BuildMapping());
 
         schema.DataFields.Length.Should().Be(6);
     }
@@ -106,7 +106,7 @@ public sealed class BronzeWriterTests
                 new Dictionary<string, object>())
         };
 
-        var result = BronzeWriter.BuildColumnArray(records, "power_w", "decimal");
+        var result = SilverWriter.BuildColumnArray(records, "power_w", "decimal");
 
         result.Should().BeOfType<decimal?[]>();
         var arr = (decimal?[])result;
@@ -129,7 +129,7 @@ public sealed class BronzeWriterTests
                 })
         };
 
-        var schema = BronzeWriter.BuildSchema(mapping, records);
+        var schema = SilverWriter.BuildSchema(mapping, records);
 
         schema.DataFields.Should().Contain(f => f.Name == "dc_current_string_01");
         var extraField = schema.DataFields.First(f => f.Name == "dc_current_string_01");
@@ -146,7 +146,7 @@ public sealed class BronzeWriterTests
             MakeRecord()  // Fields only contains power_w (a canonical name)
         };
 
-        var schema = BronzeWriter.BuildSchema(mapping, records);
+        var schema = SilverWriter.BuildSchema(mapping, records);
 
         // power_w is in ColumnMappings → not a pass-through; total = 6 (same as non-pass-through)
         schema.DataFields.Length.Should().Be(6);
@@ -161,21 +161,21 @@ public sealed class BronzeWriterTests
                 new Dictionary<string, object> { ["label"] = "hello" })
         };
 
-        var result = BronzeWriter.BuildColumnArray(records, "label", "string");
+        var result = SilverWriter.BuildColumnArray(records, "label", "string");
 
         var arr = (string?[])result;
         arr[0].Should().Be("hello");
     }
 
     /// <summary>
-    /// T4 (docs/contract-migration.md R3.6): the published path must be the blob client's own
-    /// <see cref="BlobClient.Uri"/> — never a hand-built string — and that URI's container and
-    /// blob path must be properly '/'-separated, not concatenated.
+    /// T4 (docs/contract-migration.md R3.6, carried forward by R3.1's rename): the published path
+    /// must be the blob client's own <see cref="BlobClient.Uri"/> — never a hand-built string — and
+    /// that URI's container and blob path must be properly '/'-separated, not concatenated.
     /// </summary>
     [Fact]
     public async Task WriteAsync_ReturnsTheWrittenBlobClientUri_WithContainerAndPathSeparatedCorrectly()
     {
-        const string container = "bronze";
+        const string container = "silver";
         const string expectedBlobPath = "t4-dataset/2026-10-01/data.parquet";
         var blobUri = new Uri($"http://127.0.0.1:10000/devstoreaccount1/{container}/{expectedBlobPath}");
 
@@ -199,7 +199,7 @@ public sealed class BronzeWriterTests
         var serviceClientMock = new Mock<BlobServiceClient>();
         serviceClientMock.Setup(s => s.GetBlobContainerClient(container)).Returns(containerClientMock.Object);
 
-        var writer = new BronzeWriter(serviceClientMock.Object, container, NullLogger<BronzeWriter>.Instance);
+        var writer = new SilverWriter(serviceClientMock.Object, container, NullLogger<SilverWriter>.Instance);
 
         var result = await writer.WriteAsync(
             new DatasetId("t4-dataset"),

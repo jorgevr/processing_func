@@ -11,6 +11,7 @@ const path = require('path');
 
 const SCHEMA_CONTAINER = 'schema-registry';
 const BRONZE_CONTAINER = 'bronze';
+const SILVER_CONTAINER = 'silver';
 const CONN_STR = 'UseDevelopmentStorage=true';
 
 function az(...args) {
@@ -24,7 +25,7 @@ function az(...args) {
 }
 
 // Create containers
-for (const container of [SCHEMA_CONTAINER, BRONZE_CONTAINER]) {
+for (const container of [SCHEMA_CONTAINER, BRONZE_CONTAINER, SILVER_CONTAINER]) {
   console.log(`Creating container: ${container}`);
   const create = az('storage', 'container', 'create', '--name', container);
   if (create.status === 0) {

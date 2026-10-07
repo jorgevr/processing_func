@@ -13,7 +13,7 @@ namespace DatasetProcessingFunction.Application.Commands;
 public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatasetCommand, ProcessDatasetResult>
 {
     private readonly IDatasetReader _reader;
-    private readonly IBronzeWriter _writer;
+    private readonly ISilverWriter _writer;
     private readonly ISchemaRegistry _registry;
     private readonly IMediator _mediator;
     private readonly CsvParserService _csvParser;
@@ -25,7 +25,7 @@ public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatase
 
     public ProcessDatasetCommandHandler(
         IDatasetReader reader,
-        IBronzeWriter writer,
+        ISilverWriter writer,
         ISchemaRegistry registry,
         IMediator mediator,
         CsvParserService csvParser,
@@ -112,15 +112,15 @@ public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatase
                 transformActivity?.SetTag("record_count", canonicalRecords.Count);
             }
 
-            // 6. Write Bronze — mapping passed explicitly so writer builds schema dynamically (FR-017b)
-            Uri bronzePath;
-            using (var writeActivity = DatasetActivitySource.Source.StartActivity("dataset.bronze.write"))
+            // 6. Write Silver (ADR 0001) — mapping passed explicitly so writer builds schema dynamically (FR-017b)
+            Uri silverPath;
+            using (var writeActivity = DatasetActivitySource.Source.StartActivity("dataset.silver.write"))
             {
                 writeActivity?.SetTag("dataset_id", request.DatasetId);
                 var date = DateOnly.FromDateTime(DateTime.UtcNow);
-                bronzePath = await _writer.WriteAsync(
+                silverPath = await _writer.WriteAsync(
                     new DatasetId(request.DatasetId), date, canonicalRecords, mapping, cancellationToken);
-                writeActivity?.SetTag("bronze_path", bronzePath.ToString());
+                writeActivity?.SetTag("silver_path", silverPath.ToString());
             }
 
             // 7. Publish downstream notification
@@ -128,7 +128,7 @@ public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatase
                 new DatasetBronzeAvailableNotification(
                     request.DatasetId,
                     canonicalRecords.Count,
-                    bronzePath,
+                    silverPath,
                     request.SchemaVersion,
                     request.CorrelationId,
                     DateTimeOffset.UtcNow),
@@ -143,9 +143,9 @@ public sealed class ProcessDatasetCommandHandler : IRequestHandler<ProcessDatase
                 ValidationPassCount: validationResult.PassCount,
                 ValidationFailCount: validationResult.FailCount,
                 ProcessingDurationMs: sw.ElapsedMilliseconds,
-                BronzePath: bronzePath));
+                BronzePath: silverPath));
 
-            return ProcessDatasetResult.Ok(canonicalRecords.Count, bronzePath);
+            return ProcessDatasetResult.Ok(canonicalRecords.Count, silverPath);
         }
         catch (DatasetValidationException)
         {
