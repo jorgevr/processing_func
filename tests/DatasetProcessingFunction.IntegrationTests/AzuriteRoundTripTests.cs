@@ -44,9 +44,7 @@ public sealed class AzuriteRoundTripTests
         SchemaVersion: "v1",
         Fields: new Dictionary<string, object> { ["power_w"] = 10.5m });
 
-    // CI-3b PROOF (throwaway, to be reverted): force a skip to prove the Azurite-specific branch
-    // fires on its own, even when the plain executed-count floor is satisfied
-    [IntegrationFact(DisplayName = "Azurite round trip: plain path", Skip = "CI-3b proof: forced skip")]
+    [IntegrationFact(DisplayName = "Azurite round trip: plain path")]
     public Task WriteAsync_ThenReadAsync_PlainPath_ReturnsIdenticalBytes() =>
         AssertRoundTrip($"t6-plain-{Guid.NewGuid():N}");
 
