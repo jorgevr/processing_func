@@ -16,6 +16,10 @@ env:
   FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
   RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
   AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  # CI-3b: today's real count (tests/DatasetProcessingFunction.IntegrationTests/). Update this
+  # when adding or removing integration tests — it exists to catch a silent drop in how many
+  # tests actually ran, not to be a ceiling.
+  MIN_INTEGRATION_TESTS: '10'
 
 jobs:
   build:
@@ -175,8 +179,8 @@ jobs:
           # specifically means the live round-trip was never actually exercised this run.
           AZURITE_SKIPPED=$(grep -c 'testName="[^"]*AzuriteRoundTripTests[^"]*".*outcome="NotExecuted"' "$TRX" || true)
           echo "Total: ${TOTAL:-<missing>}, Executed: ${EXECUTED:-<missing>}, Skipped (total-executed): $SKIPPED, NotExecuted result elements: $NOTEXECUTED_RESULTS, AzuriteRoundTripTests skipped: $AZURITE_SKIPPED"
-          if [ -z "$EXECUTED" ] || [ "$EXECUTED" -lt 10 ]; then
-            echo "::error::Only ${EXECUTED:-0} integration test(s) executed (need >= 10) — check that the project built, discovered tests, and that Azurite was reachable."
+          if [ -z "$EXECUTED" ] || [ "$EXECUTED" -lt "${{ env.MIN_INTEGRATION_TESTS }}" ]; then
+            echo "::error::Only ${EXECUTED:-0} integration test(s) executed (need >= ${{ env.MIN_INTEGRATION_TESTS }}) — check that the project built, discovered tests, and that Azurite was reachable."
             exit 1
           fi
           if [ "$AZURITE_SKIPPED" -gt 0 ]; then
