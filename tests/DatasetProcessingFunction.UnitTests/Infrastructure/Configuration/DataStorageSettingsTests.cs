@@ -25,7 +25,8 @@ public sealed class DataStorageSettingsTests
 
         var settings = DataStorageSettings.Resolve(config);
 
-        settings.Mode.Should().Be(StorageMode.Local);
+        // CI-3 PROOF (throwaway, to be reverted): deliberately wrong assertion
+        settings.Mode.Should().Be(StorageMode.Cloud);
         settings.ConnectionString.Should().Be("UseDevelopmentStorage=true");
         settings.AccountUrl.Should().BeNull();
     }
