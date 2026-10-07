@@ -177,7 +177,29 @@ jobs:
           # AzuriteRoundTripTests (AGENTS.md §6: "Mocked integration tests do not count as proof")
           # is the one class in this project that proves real Azurite connectivity — a skip there
           # specifically means the live round-trip was never actually exercised this run.
-          AZURITE_SKIPPED=$(grep -c 'testName="[^"]*AzuriteRoundTripTests[^"]*".*outcome="NotExecuted"' "$TRX" || true)
+          #
+          # <UnitTestResult testName="..."> is the xUnit [Fact(DisplayName=...)] display string, NOT
+          # the fully-qualified method name — grepping testName for "AzuriteRoundTripTests" can never
+          # match (verified: this class's own DisplayNames are "Azurite round trip: ..."). The real
+          # class name lives in <TestDefinitions>'s <UnitTest id="X"><TestMethod className="..."/>,
+          # cross-referenced to <UnitTestResult testId="X"> — that's what this resolves instead.
+          AZURITE_SKIPPED=$(python3 -c "
+          import re, sys
+          with open(sys.argv[1]) as f:
+              content = f.read()
+          azurite_ids = set(re.findall(
+              r'<UnitTest[^>]*\bid=\"([0-9a-fA-F-]+)\"[^>]*>.*?<TestMethod[^>]*\bclassName=\"[^\"]*AzuriteRoundTripTests\"',
+              content, re.DOTALL))
+          names = []
+          for tag in re.findall(r'<UnitTestResult\b[^>]*/?>', content):
+              idm = re.search(r'\btestId=\"([0-9a-fA-F-]+)\"', tag)
+              namem = re.search(r'\btestName=\"([^\"]*)\"', tag)
+              if idm and idm.group(1) in azurite_ids and 'outcome=\"NotExecuted\"' in tag:
+                  names.append(namem.group(1) if namem else idm.group(1))
+          print(len(names))
+          for n in names:
+              print('  -', n, file=sys.stderr)
+          " "$TRX")
           echo "Total: ${TOTAL:-<missing>}, Executed: ${EXECUTED:-<missing>}, Skipped (total-executed): $SKIPPED, NotExecuted result elements: $NOTEXECUTED_RESULTS, AzuriteRoundTripTests skipped: $AZURITE_SKIPPED"
           if [ -z "$EXECUTED" ] || [ "$EXECUTED" -lt "${{ env.MIN_INTEGRATION_TESTS }}" ]; then
             echo "::error::Only ${EXECUTED:-0} integration test(s) executed (need >= ${{ env.MIN_INTEGRATION_TESTS }}) — check that the project built, discovered tests, and that Azurite was reachable."
@@ -185,7 +207,6 @@ jobs:
           fi
           if [ "$AZURITE_SKIPPED" -gt 0 ]; then
             echo "::error::$AZURITE_SKIPPED AzuriteRoundTripTests test(s) were skipped. These must run against the live Azurite service container above, not skip — check that DATA_STORAGE_CONNECTION reached the test process and that azurite is healthy."
-            grep -o '<UnitTestResult[^>]*testName="[^"]*AzuriteRoundTripTests[^"]*"[^>]*/>' "$TRX" || true
             exit 1
           fi
           if [ "$SKIPPED" -gt 0 ] || [ "$NOTEXECUTED_RESULTS" -gt 0 ]; then
