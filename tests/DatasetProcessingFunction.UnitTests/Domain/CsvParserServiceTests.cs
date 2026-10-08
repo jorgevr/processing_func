@@ -23,6 +23,12 @@ public sealed class CsvParserServiceTests
     }
 
     [Fact]
+    public async Task Dont_Pass_Test()
+    {
+        Assert.False(true);
+    }
+
+    [Fact]
     public async Task ParseAsync_ValidCsv_DetectsHeaderRow()
     {
         var csv = "timestamp,site_id,power_kw\n2026-03-15T10:00:00Z,site-1,100.5";
