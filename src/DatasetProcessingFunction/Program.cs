@@ -6,7 +6,6 @@ using DatasetProcessingFunction.Application.Interfaces;
 using DatasetProcessingFunction.Domain.Services;
 using DatasetProcessingFunction.Domain.Telemetry;
 using DatasetProcessingFunction.Infrastructure.Configuration;
-using DatasetProcessingFunction.Infrastructure.Contracts;
 using DatasetProcessingFunction.Infrastructure.Messaging;
 using DatasetProcessingFunction.Infrastructure.Telemetry;
 using Microsoft.Azure.Functions.Worker;
@@ -91,9 +90,12 @@ builder.Services.AddSchemaRegistry(builder.Configuration);
 
 builder.Services.AddScoped<IEventPublisher, ServiceBusEventPublisher>();
 // R3.7: validates inbound solar.pvdaq.dataset.available.v1 envelopes against the vendored
-// contract before ProcessDatasetFunction deserialises them. Stateless (the compiled schema is a
-// static field) — singleton is just to avoid re-resolving it per message.
-builder.Services.AddSingleton<IDatasetEventValidator, DatasetAvailableEventValidator>();
+// contract before ProcessDatasetFunction deserialises them.
+// R3.7b: AddDatasetEventValidator constructs the validator eagerly, right here, rather than
+// registering a type mapping DI would only construct lazily on the first inbound message (the
+// bug this fixes) — see its doc comment in ServiceCollectionExtensions.cs. A missing, unreadable,
+// invalid, or mismatched vendored schema now throws here and fails host start.
+builder.Services.AddDatasetEventValidator();
 builder.Services.AddSingleton<IProcessingMetricsEmitter, ProcessingMetricsEmitter>();
 
 // Domain services
