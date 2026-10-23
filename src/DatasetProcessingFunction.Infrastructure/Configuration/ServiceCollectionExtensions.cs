@@ -2,6 +2,7 @@ using Azure;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using DatasetProcessingFunction.Application.Interfaces;
+using DatasetProcessingFunction.Infrastructure.Contracts;
 using DatasetProcessingFunction.Infrastructure.SchemaRegistry;
 using DatasetProcessingFunction.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
@@ -155,5 +156,25 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    /// <summary>
+    /// Registers <see cref="IDatasetEventValidator"/> (R3.7b). Constructs
+    /// <see cref="DatasetAvailableEventValidator"/> here — before registering it — so the vendored
+    /// schema's load, parse and <c>$id</c> check happen now, synchronously, as a direct side
+    /// effect of calling this method. A type-mapped <c>AddSingleton&lt;IDatasetEventValidator,
+    /// DatasetAvailableEventValidator&gt;()</c> would defer construction (and therefore the
+    /// schema check) until something resolves <see cref="IDatasetEventValidator"/> — in
+    /// production, that is <c>ProcessDatasetFunction</c>, constructed by DI on the first inbound
+    /// message. The resulting <see cref="ServiceDescriptor"/> carries the already-built instance
+    /// (<see cref="ServiceDescriptor.ImplementationInstance"/> set, not
+    /// <see cref="ServiceDescriptor.ImplementationType"/>) — that difference is what
+    /// distinguishes "eager" from "lazy" here and is asserted directly in
+    /// DatasetAvailableEventValidatorEagerLoadingTests.
+    /// </summary>
+    public static IServiceCollection AddDatasetEventValidator(this IServiceCollection services)
+    {
+        var validator = new DatasetAvailableEventValidator();
+        return services.AddSingleton<IDatasetEventValidator>(validator);
     }
 }
