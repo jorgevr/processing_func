@@ -183,4 +183,51 @@ public sealed class ProcessDatasetFunctionTests
             It.IsAny<ServiceBusReceivedMessage>(), It.IsAny<Dictionary<string, object>>(),
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task RunAsync_NonTransientServiceBusException_DeadLettersInsteadOfRetrying()
+    {
+        var mediator = new Mock<IMediator>();
+        mediator
+            .Setup(m => m.Send(It.IsAny<ProcessDatasetCommand>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ServiceBusException(
+                "message too large", ServiceBusFailureReason.MessageSizeExceeded, "raw-energy-events"));
+        var actions = new Mock<ServiceBusMessageActions>();
+        var function = new ProcessDatasetFunction(
+            mediator.Object, new DatasetAvailableEventValidator(), NullLogger<ProcessDatasetFunction>.Instance);
+
+        await function.RunAsync(BuildMessage(ValidEnvelope), actions.Object, CancellationToken.None);
+
+        actions.Verify(a => a.DeadLetterMessageAsync(
+            It.IsAny<ServiceBusReceivedMessage>(),
+            null,
+            "ServiceBusPublishFailed",
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
+        actions.Verify(a => a.CompleteMessageAsync(
+            It.IsAny<ServiceBusReceivedMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RunAsync_TransientServiceBusException_RethrowsForRedelivery_NeverDeadLetters()
+    {
+        var mediator = new Mock<IMediator>();
+        mediator
+            .Setup(m => m.Send(It.IsAny<ProcessDatasetCommand>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ServiceBusException(
+                "service busy", ServiceBusFailureReason.ServiceBusy, "raw-energy-events"));
+        var actions = new Mock<ServiceBusMessageActions>();
+        var function = new ProcessDatasetFunction(
+            mediator.Object, new DatasetAvailableEventValidator(), NullLogger<ProcessDatasetFunction>.Instance);
+
+        var act = () => function.RunAsync(BuildMessage(ValidEnvelope), actions.Object, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ServiceBusException>();
+        actions.Verify(a => a.DeadLetterMessageAsync(
+            It.IsAny<ServiceBusReceivedMessage>(), It.IsAny<Dictionary<string, object>>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        actions.Verify(a => a.CompleteMessageAsync(
+            It.IsAny<ServiceBusReceivedMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

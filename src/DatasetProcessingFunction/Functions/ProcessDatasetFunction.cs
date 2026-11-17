@@ -5,6 +5,7 @@ using DatasetProcessingFunction.Application.Commands;
 using DatasetProcessingFunction.Application.Interfaces;
 using DatasetProcessingFunction.Domain.Exceptions;
 using DatasetProcessingFunction.Domain.Services;
+using DatasetProcessingFunction.Infrastructure.Messaging;
 using MediatR;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
@@ -212,6 +213,21 @@ public sealed class ProcessDatasetFunction
                     error_type = "SourceFileNotFound",
                     dataset_id = datasetId,
                     storage_path = evt.Data.StoragePath
+                }),
+                cancellationToken);
+        }
+        catch (ServiceBusException sbex) when (!ServiceBusExceptionClassifier.IsTransient(sbex))
+        {
+            _logger.LogWarning(sbex,
+                "Non-transient Service Bus failure ({Reason}) processing dataset {DatasetId} — dead-lettering",
+                sbex.Reason, datasetId);
+            await messageActions.DeadLetterMessageAsync(
+                message, null, "ServiceBusPublishFailed",
+                JsonSerializer.Serialize(new
+                {
+                    error_type = "ServiceBusPublishFailed",
+                    dataset_id = datasetId,
+                    reason = sbex.Reason.ToString()
                 }),
                 cancellationToken);
         }
