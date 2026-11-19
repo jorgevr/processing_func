@@ -7,7 +7,7 @@ updates:
       day: monday
       time: "09:00"
       timezone: "Europe/London"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     groups:
       azure-sdk:
         patterns:
@@ -19,6 +19,22 @@ updates:
       functions-worker:
         patterns:
           - "Microsoft.Azure.Functions.Worker*"
+      test-tooling:
+        patterns:
+          - "Microsoft.NET.Test.Sdk"
+          - "xunit*"
+          - "coverlet*"
+          - "FluentAssertions*"
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Major bumps get their own reviewed task, not a drive-by PR.
+      - dependency-name: "FluentAssertions"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Parquet.Net"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -27,4 +43,8 @@ updates:
       day: monday
       time: "09:00"
       timezone: "Europe/London"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns:
+          - "*"
