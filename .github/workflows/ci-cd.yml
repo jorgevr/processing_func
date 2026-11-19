@@ -26,8 +26,8 @@ jobs:
     name: Build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Restore
@@ -43,7 +43,7 @@ jobs:
         run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore -warnaserror
       - name: Publish artifact
         run: dotnet publish src/DatasetProcessingFunction/DatasetProcessingFunction.csproj --configuration Release --no-build --output ./publish
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: function-app
           path: ./publish
@@ -53,8 +53,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Run unit tests with coverage
@@ -136,8 +136,8 @@ jobs:
       # against Azurite; set, they run for real.
       DATA_STORAGE_CONNECTION: UseDevelopmentStorage=true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       # CI-3: storage-init equivalent (mirrors root docker-compose.yml's storage-init service) —
@@ -248,8 +248,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.commits != null && contains(github.event.commits[0].modified, 'infrastructure/')
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/login@v2
+      - uses: actions/checkout@v7
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -267,11 +267,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: function-app
           path: ./publish
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -288,7 +288,7 @@ jobs:
     needs: deploy-staging
     runs-on: ubuntu-latest
     steps:
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -310,7 +310,7 @@ jobs:
     needs: health-check
     runs-on: ubuntu-latest
     steps:
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -329,7 +329,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
