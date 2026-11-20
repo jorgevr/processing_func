@@ -61,3 +61,6 @@ publish/
 
 # Azurite VS Code extension config
 AzuriteConfig
+
+.agents/
+.codex/
