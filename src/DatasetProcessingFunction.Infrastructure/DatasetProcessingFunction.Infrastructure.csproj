@@ -7,7 +7,7 @@
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.21.0" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.29.2" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.30.2" />
     <PackageReference Include="CsvHelper" Version="33.1.0" />
     <!-- Draft 2020-12 JSON Schema validator (R3.7, ADR 0004 rule 3) — format assertion is left at
          its library default (off) deliberately: every `format` in the vendored contract carries an
